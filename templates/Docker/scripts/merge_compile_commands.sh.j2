@@ -5,6 +5,7 @@
 # <workspace>/compile_commands.json for clangd/IntelliSense (multi-package workspace).
 # Usage: merge_compile_commands.sh [WORKSPACE]   (default: $ROS_WS)
 # Needs a build with: colcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+# (colcon_build.sh / `cb` already passes it).
 
 set -e
 cd "${1:-${ROS_WS:-{{ ros_ws }}}}"
@@ -15,7 +16,10 @@ if ! command -v jq &>/dev/null; then
 fi
 readarray -t FILES < <(find build -name "compile_commands.json" 2>/dev/null) || true
 if [ ${#FILES[@]} -eq 0 ]; then
-  echo "No build/*/compile_commands.json found. Run: colcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+  # Only CMake packages emit compile_commands.json, so a workspace of
+  # ament_python packages has none: nothing to merge. Drop any stale merge.
+  rm -f "$OUT"
+  echo "No C/C++ (CMake) packages built; skipping compile_commands.json merge."
 else
   jq -s 'add' "${FILES[@]}" > "${OUT}.tmp" && mv "${OUT}.tmp" "$OUT" && echo "Merged ${#FILES[@]} compile_commands -> $OUT"
 fi
