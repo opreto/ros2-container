@@ -15,7 +15,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "init":
             return init_config(args.distro, args.name)
-        cfg = config.load(args.config, args.set, output_root=args.output)
+        cfg = config.load(args.config)
         ctx = context.build(cfg)
         files = outputs.render(outputs.OUTPUTS, ctx)
         manifest = f"{ctx['dirs']['docker']}/.generated"
@@ -30,10 +30,8 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="generate.sh", description="Generate a ROS 2 dev container from a YAML/JSON config.")
+    parser = argparse.ArgumentParser(prog="generate.sh", description="Generate a ROS 2 dev container from a YAML/JSON config (the only source of settings).")
     parser.add_argument("-c", "--config", action="append", default=[], help=f"config file(s), merged in order (default: ./{config.DEFAULT_CONFIG_NAME})")
-    parser.add_argument("-o", "--output", help="output root (default: output.root, relative to the config file)")
-    parser.add_argument("--set", action="append", default=[], metavar="KEY.PATH=VALUE", help="override one value, e.g. --set ros.distro=kilted")
     parser.add_argument("--force", action="store_true", help="overwrite existing files the generator did not create")
     parser.add_argument("--check", action="store_true", help="write nothing; exit 1 if generated files are out of date")
     sub = parser.add_subparsers(dest="command")

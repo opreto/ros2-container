@@ -6,7 +6,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Iterable
 
 import yaml
 
@@ -39,23 +39,18 @@ class Config:
     config_name: str  # for the "generated from" header
 
 
-def load(config_files: Iterable[str], overrides: Iterable[str], output_root: str | None = None) -> Config:
-    """Merge defaults <- config files (left to right) <- `key.path=value` overrides."""
+def load(config_files: Iterable[str]) -> Config:
+    """Merge defaults <- config files (left to right). The config is the only source of settings."""
     files = [Path(f) for f in config_files] or [_default_config_file()]
     data = _read(DEFAULTS_FILE)
     for path in files:
         data = deep_merge(data, _read(path))
-    for item in overrides:
-        key, sep, value = item.partition("=")
-        if not sep:
-            raise ConfigError(f"--set expects key.path=value, got {item!r}")
-        _set_dotted(data, key, yaml.safe_load(value))
     _validate(data, _read(DEFAULTS_FILE))
 
     config_dir = files[-1].resolve().parent
-    root = Path(output_root).resolve() if output_root else (config_dir / data["output"]["root"]).resolve()
+    root = (config_dir / data["output"]["root"]).resolve()
     if root == REPO_DIR or REPO_DIR in root.parents:
-        raise ConfigError(f"Refusing to generate inside the generator itself ({root}); pass -o or move the config.")
+        raise ConfigError(f"Refusing to generate inside the generator itself ({root}); set output.root or move the config.")
     return Config(data, config_dir, root, files[-1].name)
 
 
@@ -84,13 +79,6 @@ def _read(path: Path) -> dict:
     if not isinstance(data, dict):
         raise ConfigError(f"{path} must contain a mapping at the top level")
     return data
-
-
-def _set_dotted(data: dict, dotted: str, value: Any) -> None:
-    *parents, leaf = dotted.split(".")
-    for key in parents:
-        data = data.setdefault(key, {})
-    data[leaf] = value
 
 
 def _validate(data: dict, defaults: dict) -> None:

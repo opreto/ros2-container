@@ -30,7 +30,7 @@ and its default is documented in [defaults.yaml](defaults.yaml). A few rules:
 - **Merging:** maps merge over the defaults, and lists replace them. Unknown keys are an error.
 - **Dependencies:** `dependencies.apt` and `dependencies.ros` are named groups. Each group becomes one cached `RUN` layer. ROS packages use short names (`robot_state_publisher` becomes `ros-<distro>-robot-state-publisher`).
 - **Escape hatches:** `extra.volumes`, `extra.env`, `extra.devices`, `extra.run` (raw Dockerfile steps), `extra.dockerfile_env` and `rosdep.rules_file`.
-- **One-off overrides:** `generate.sh --set ros.distro=kilted --set display.nvidia=false`. Use `-c a.yaml -c b.yaml` to merge several configs.
+- **Layered configs:** every setting, including where output goes (`output.root`), comes from the config file. To share a base config across projects, use `generate.sh -c base.yaml -c robot.yaml`; the files merge left to right.
 
 The generator owns the files it writes, and lists them in `Docker/.generated`.
 Re-running it updates those files and deletes any it no longer produces. It

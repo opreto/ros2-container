@@ -14,7 +14,7 @@ project:
   display_name: My Robot            # shown in the VS Code dev container picker
 
 output:
-  root: .                           # where generated folders go (-o overrides it)
+  root: .                           # where generated folders go, relative to the config file
   docker_dir: Docker
   devcontainer_dir: .devcontainer
   vscode_dir: .vscode
