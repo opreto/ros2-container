@@ -1,0 +1,45 @@
+# {{ header }}
+# Put personal aliases in Docker/.bash_aliases_personal (not committed).
+
+{% for name, command in bash.aliases.items() if command %}
+alias {{ name }}={{ command | shquote }}
+{% endfor %}
+
+# Sourcing
+alias sros="source /opt/ros/{{ ros.distro }}/setup.bash"
+alias swksp='source "$ROS_WS/install/setup.bash"'
+
+# GPU: prefer NVIDIA when the container has the NVIDIA EGL vendor (compose.nvidia.yml);
+# otherwise use Mesa (Intel/AMD via /dev/dri, or software rendering).
+_NVIDIA_EGL_VENDOR=/usr/share/glvnd/egl_vendor.d/10_nvidia.json
+_MESA_EGL_VENDOR=/usr/share/glvnd/egl_vendor.d/50_mesa.json
+if [[ -f "${_NVIDIA_EGL_VENDOR}" ]]; then
+  export NVIDIA_VISIBLE_DEVICES="${NVIDIA_VISIBLE_DEVICES:-all}"
+  export NVIDIA_DRIVER_CAPABILITIES="${NVIDIA_DRIVER_CAPABILITIES:-graphics,utility,compute}"
+  export __GLX_VENDOR_LIBRARY_NAME="${__GLX_VENDOR_LIBRARY_NAME:-nvidia}"
+  export __EGL_VENDOR_LIBRARY_FILENAMES="${__EGL_VENDOR_LIBRARY_FILENAMES:-${_NVIDIA_EGL_VENDOR}}"
+else
+  unset NVIDIA_VISIBLE_DEVICES NVIDIA_DRIVER_CAPABILITIES __GLX_VENDOR_LIBRARY_NAME 2>/dev/null || true
+  export __EGL_VENDOR_LIBRARY_FILENAMES="${__EGL_VENDOR_LIBRARY_FILENAMES:-${_MESA_EGL_VENDOR}}"
+fi
+unset _NVIDIA_EGL_VENDOR _MESA_EGL_VENDOR
+export QT_X11_NO_MITSHM="${QT_X11_NO_MITSHM:-1}"
+
+# Build the colcon workspace ($ROS_WS) from any directory. Extra args go to the
+# build script; anything after `--` goes to `colcon build`.
+cb() {
+  bash {{ install_dir }}/scripts/colcon_build.sh --workspace="$ROS_WS" --skip-apt-update "$@"
+}
+
+# Build, then source the workspace.
+cbs() {
+  cb "$@"
+  local ret=$?
+  swksp
+  return $ret
+}
+
+# Remove the colcon build artifacts.
+cclean() {
+  rm -rf "$ROS_WS/build" "$ROS_WS/install" "$ROS_WS/log"
+}

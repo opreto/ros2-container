@@ -1,0 +1,159 @@
+#!/bin/bash
+# {{ header }}
+set -e # fail on any exit code not being 0
+
+THIS_DIR=$(dirname "$(readlink -f "$0")")
+
+helpFunction() {
+  echo "Compile the ROS workspace."
+  echo ""
+  echo "Usage: $0 [args] [-- <colcon build args>]"
+  echo -e "\t-w, --workspace <DIR>  The colcon workspace to compile. Defaults to \$ROS_WS ($ROS_WS)."
+  echo -e "\t-U, --skip-apt-update    Skip an apt-get update prior to building. Defaults to false."
+  echo -e "\t-R, --skip-rosdep-update   Skip a rosdep update prior to building. Defaults to false."
+  echo -e "\t-A, --cmake-args <ARGS>  The arguments passed to colcon build's --cmake-args. Defaults to '{{ build.cmake_args }}'."
+  echo -e "\t-j, --jobs <N>   Number of parallel compile jobs (sets MAKEFLAGS=-jN). Defaults to the build tool's own default (usually one job per CPU core). Lower this if the build gets OOM-killed."
+  echo -e "\t-h, --help   Show help"
+}
+
+# ----- Pre-process long options so we can use getopts ----- #
+# Anything after `--` is captured verbatim and forwarded to `colcon build`
+# below, so callers can pass colcon-only flags (e.g. `--packages-skip ...`)
+# without `getopts` mangling them character-by-character.
+args=()
+passthrough=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --workspace)
+      args+=("-w" "$2")
+      shift 2
+      ;;
+    --workspace=*)
+      args+=("-w" "${1#*=}")
+      shift
+      ;;
+    --skip-apt-update)
+      args+=('-U')
+      shift
+      ;;
+    --skip-rosdep-update)
+      args+=('-R')
+      shift
+      ;;
+    --cmake-args)
+      args+=("-A" "$2")
+      shift 2
+      ;;
+    --cmake-args=*)
+      args+=("-A" "${1#*=}")
+      shift
+      ;;
+    --jobs)
+      args+=("-j" "$2")
+      shift 2
+      ;;
+    --jobs=*)
+      args+=("-j" "${1#*=}")
+      shift
+      ;;
+    --help)
+      args+=("-h")
+      shift
+      ;;
+    --)
+      shift
+      passthrough+=("$@")
+      break
+      ;;
+    *)
+      args+=("$1")
+      shift
+      ;;
+  esac
+done
+
+# Restore positional parameters
+set -- "${args[@]}"
+
+# ---- getopts parsing ----
+workspaceParam=${ROS_WS:-{{ ros_ws }}}
+skipAptUpdate=false
+skipRosdepUpdate=false
+cmakeArgs={{ build.cmake_args | shquote }}
+jobsParam=""
+while getopts ":w:URA:j:h" opt; do
+  case "$opt" in
+    w)
+      workspaceParam="$OPTARG"
+      ;;
+    U)
+      skipAptUpdate=true
+      ;;
+    R)
+      skipRosdepUpdate=true
+      ;;
+    A)
+      cmakeArgs="$OPTARG"
+      ;;
+    j)
+      jobsParam="$OPTARG"
+      ;;
+    h)
+      helpFunction
+      exit 0
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG"
+      helpFunction
+      exit 1
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument."
+      helpFunction
+      exit 1
+      ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+# Merge any leftover positionals (before `--`) with the `--` passthrough list,
+# preserving order, before forwarding to `colcon build`.
+set -- "$@" "${passthrough[@]}"
+
+# Validate
+# --------
+if ! [[ -d "$workspaceParam" ]]; then
+  echo "Directory $workspaceParam does not exist."
+  exit 1
+fi
+
+# Run the script
+# --------------
+source /opt/ros/{{ ros.distro }}/setup.bash
+
+if ! $skipAptUpdate; then
+  apt-get update
+fi
+if ! $skipRosdepUpdate; then
+  rosdep update
+fi
+
+if [[ -n "$jobsParam" ]]; then
+  export MAKEFLAGS="-j$jobsParam"
+fi
+
+cd "$workspaceParam"
+rosdep install --from-paths src --ignore-src -y
+# shellcheck disable=SC2086  # cmakeArgs is intentionally word-split
+colcon build \
+  --cmake-args $cmakeArgs{% if build.merge_compile_commands %} -DCMAKE_EXPORT_COMPILE_COMMANDS=ON{% endif %} \
+  --symlink-install "$@"
+{% if build.merge_compile_commands %}
+"$THIS_DIR/merge_compile_commands.sh" "$workspaceParam"
+{% endif %}
+{% if ide_scripts %}
+python3 "$THIS_DIR/generate_ide_config.py"
+{% endif %}
+{% if build.post_build_hook %}
+{{ build.post_build_hook }}
+{% endif %}

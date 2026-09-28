@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# {{ header }}
+#
+# Merge all build/*/compile_commands.json of a colcon workspace into one
+# <workspace>/compile_commands.json for clangd/IntelliSense (multi-package workspace).
+# Usage: merge_compile_commands.sh [WORKSPACE]   (default: $ROS_WS)
+# Needs a build with: colcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+set -e
+cd "${1:-${ROS_WS:-{{ ros_ws }}}}"
+OUT=compile_commands.json
+if ! command -v jq &>/dev/null; then
+  echo "Install jq to merge (apt install jq)"
+  exit 1
+fi
+readarray -t FILES < <(find build -name "compile_commands.json" 2>/dev/null) || true
+if [ ${#FILES[@]} -eq 0 ]; then
+  echo "No build/*/compile_commands.json found. Run: colcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+else
+  jq -s 'add' "${FILES[@]}" > "${OUT}.tmp" && mv "${OUT}.tmp" "$OUT" && echo "Merged ${#FILES[@]} compile_commands -> $OUT"
+fi

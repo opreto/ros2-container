@@ -1,0 +1,10 @@
+# {{ header }}
+# The build context is this folder; only send what the Dockerfile COPYs.
+*
+!Dockerfile
+!entrypoint.sh
+!.bash_aliases
+!scripts/
+!cyclonedds.xml
+!python-requirements.txt
+!rosdep-rules.yaml

@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# {{ header }}
+#
+# Run `docker compose` with the overlays that match this host:
+#   ./compose-up.sh up -d --build          # detect the host variant
+#   ./compose-up.sh --variant linux exec {{ service }} bash
+# Variants: {{ variants | map(attribute="name") | join(", ") }}
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${SCRIPT_DIR}"
+
+compose_files() {
+  case "$1" in
+{% for v in variants %}
+    {{ v.name }}) echo "{{ v.compose_files | join(" ") }}" ;;
+{% endfor %}
+    *) return 1 ;;
+  esac
+}
+
+# Preferred variants for this host, best first; the first enabled one wins.
+candidates() {
+  if [[ "$(uname -s)" == Darwin ]]; then
+    echo mac-vnc
+  elif [[ -d /mnt/wslg ]] || grep -qi microsoft /proc/version 2>/dev/null; then
+    echo windows-wslg mac-vnc
+{% if "nvidia" in overlays %}
+  elif command -v python3 >/dev/null && python3 "${SCRIPT_DIR}/host_gpu_detect.py" --quiet; then
+    echo linux-nvidia linux mac-vnc
+{% endif %}
+  else
+    echo linux mac-vnc
+  fi
+}
+
+variant=""
+if [[ "${1:-}" == --variant ]]; then
+  variant="${2:?--variant needs a name}"
+  shift 2
+else
+  for candidate in $(candidates); do
+    if compose_files "${candidate}" >/dev/null; then variant="${candidate}"; break; fi
+  done
+fi
+files="$(compose_files "${variant}")" || { echo "No usable variant '${variant}' (enabled: {{ variants | map(attribute="name") | join(", ") }})" >&2; exit 1; }
+echo "Host variant: ${variant}" >&2
+
+if [[ " ${files} " == *" compose.linux.yml "* ]] && [[ -n "${DISPLAY:-}" ]] && command -v xhost >/dev/null; then
+  xhost +local: >/dev/null || true  # let the container use the host X server
+fi
+
+args=()
+for f in ${files}; do args+=(-f "${f}"); done
+exec docker compose "${args[@]}" "$@"

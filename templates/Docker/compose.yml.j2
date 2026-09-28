@@ -1,0 +1,35 @@
+# {{ header }}
+#
+# Base service shared by every host variant. Don't run it alone: compose-up.sh
+# stacks the overlay for this host on top (compose.<overlay>.yml).
+name: {{ project.name }}
+
+services:
+  {{ service }}:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    image: {{ image }}
+    container_name: {{ project.name }}-dev
+
+    volumes:
+      # The project workspace
+      - {{ workspace_mount }}:{{ workspace.container_path }}
+      # Personal, uncommitted aliases
+      - ./.bash_aliases_personal:/root/.bash_aliases_personal
+{% for volume in extra.volumes %}
+      - {{ volume | quote }}
+{% endfor %}
+
+    environment:
+      QT_X11_NO_MITSHM: "1"
+{% for key, value in extra.env.items() %}
+      {{ key }}: {{ value | quote }}
+{% endfor %}
+
+    # Interactive shell that keeps the container running
+    stdin_open: true
+    tty: true
+    working_dir: {{ workspace.container_path }}
+    command: bash

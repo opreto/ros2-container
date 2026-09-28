@@ -1,0 +1,31 @@
+# {{ header }}
+#
+# Overlay for Linux hosts: GUI apps draw on the host's X server.
+# compose-up.sh runs `xhost +local:` so the container may connect.
+services:
+  {{ service }}:
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+{% if host.mount_dev %}
+      # Host /dev for USB serial, cameras, etc.
+      - /dev:/dev
+{% endif %}
+{% if display.mesa_dri or extra.devices %}
+
+    devices:
+{% if display.mesa_dri %}
+      # Intel/AMD GPU via Mesa (NVIDIA: see compose.nvidia.yml)
+      - /dev/dri:/dev/dri
+{% endif %}
+{% for device in extra.devices %}
+      - {{ device | quote }}
+{% endfor %}
+{% endif %}
+
+    environment:
+      DISPLAY: ${DISPLAY:-:0}
+{% if host.network_mode %}
+
+    network_mode: {{ host.network_mode }}
+{% endif %}
+    privileged: {{ host.privileged | lower }}

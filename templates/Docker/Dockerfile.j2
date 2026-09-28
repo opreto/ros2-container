@@ -1,0 +1,119 @@
+# syntax=docker/dockerfile:1
+# {{ header }}
+#
+# ROS 2 {{ ros.distro }} development image for {{ project.display_name }}.
+# The build context is this folder. Build with compose-up.sh, e.g. `./compose-up.sh build`.
+{% macro apt_install(title, packages) %}
+# {{ title }}
+RUN --mount=type=cache,target=${APT_CACHE},sharing=locked \
+    --mount=type=cache,target=${APT_LISTS},sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+{% for package in packages %}
+    {{ package }}{{ " \\" if not loop.last }}
+{% endfor %}
+{% endmacro %}
+FROM {{ base_image }} AS dev
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PIP_BREAK_SYSTEM_PACKAGES=1 \
+    WORKSPACE_ROOT={{ workspace.container_path }} \
+    ROS_WS={{ ros_ws }} \
+    ROS_DOMAIN_ID={{ ros.domain_id }} \
+    RMW_IMPLEMENTATION={{ rmw.implementation }}
+{% if use_cyclonedds %}
+# Restrict DDS to the interfaces in cyclonedds.xml (override CYCLONEDDS_URI at runtime if needed).
+ENV CYCLONEDDS_URI=file://{{ install_dir }}/cyclonedds.xml
+{% endif %}
+{% for key, value in extra.dockerfile_env.items() %}
+ENV {{ key }}={{ value | quote }}
+{% endfor %}
+
+ARG APT_CACHE=/var/cache/apt
+ARG APT_LISTS=/var/lib/apt/lists
+
+#####################
+# Base Dependencies #
+#####################
+
+{{ apt_install("Tools the generated build scripts rely on", [
+    "ros-dev-tools", "python3-colcon-common-extensions", "python3-rosdep",
+    "python3-pip", "python3-virtualenv", "git", "curl", "jq", "sudo"]) }}
+{% if "vnc" in overlays %}
+# TigerVNC (not TightVNC): its Xvnc supports GLX via llvmpipe, which RViz2/Gazebo need.
+{{ apt_install("Virtual desktop served over noVNC (mac-vnc variant)", [
+    "xfonts-base", "dbus-x11", "xfce4", "xfce4-goodies", "tigervnc-standalone-server",
+    "tigervnc-common", "tigervnc-tools", "novnc", "websockify"]) }}
+{% endif %}
+########################
+# Project Dependencies #
+########################
+
+{% for title, packages in dependencies.apt.items() if packages %}
+{{ apt_install(title, packages) }}
+{% endfor %}
+{% for title, packages in ros_apt_groups.items() if packages %}
+{{ apt_install(title, packages) }}
+{% endfor %}
+{{ apt_install("ROS middleware (" ~ rmw.implementation ~ ")", [rmw_package]) }}
+{% if dependencies.pip %}
+# Python packages (python-requirements.txt)
+COPY python-requirements.txt /tmp/python-requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r /tmp/python-requirements.txt
+{% endif %}
+{% for package in dependencies.pip_source_builds %}
+# Built from source (not a wheel) so it links against the libraries installed above
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-binary {{ package }} {{ package }}
+{% endfor %}
+
+##########
+# rosdep #
+##########
+
+{% if rosdep_rules %}
+COPY rosdep-rules.yaml {{ install_dir }}/rosdep-rules.yaml
+RUN (rosdep init || true) \
+    && echo "yaml file://{{ install_dir }}/rosdep-rules.yaml" > /etc/ros/rosdep/sources.list.d/50-{{ project.name }}.list \
+    && rosdep update
+{% else %}
+RUN (rosdep init || true) && rosdep update
+{% endif %}
+
+#################
+# Shell and IDE #
+#################
+
+COPY scripts/ {{ install_dir }}/scripts/
+{% if use_cyclonedds %}
+COPY cyclonedds.xml {{ install_dir }}/cyclonedds.xml
+{% endif %}
+COPY .bash_aliases /root/.bash_aliases
+RUN chmod +x {{ install_dir }}/scripts/* \
+    && echo "source /opt/ros/{{ ros.distro }}/setup.bash" >> /root/.bashrc \
+    && echo "[ -f /root/.bash_aliases ] && source /root/.bash_aliases" >> /root/.bashrc \
+    && echo "[ -f /root/.bash_aliases_personal ] && source /root/.bash_aliases_personal" >> /root/.bashrc \
+    # The workspace is bind-mounted from the host, so its owner differs from root.
+    && git config --global --add safe.directory '*'
+{% if extra.run %}
+
+##################
+# Extra Commands #
+##################
+
+{% for step in extra.run %}
+{% if step is mapping %}
+# {{ step.comment }}
+RUN {{ step.cmd }}
+{% else %}
+RUN {{ step }}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+WORKDIR {{ workspace.container_path }}
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["bash"]
