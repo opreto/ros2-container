@@ -1,0 +1,156 @@
+# ROS 2 Lyrical Luth (Ubuntu 26.04) dev container.
+#
+# Merged over the generator's defaults.yaml: maps merge key by key; lists replace the default
+# list. Relative paths are resolved against this file's directory (except
+# workspace.host_path, which is relative to the generated project root).
+# Regenerate after any edit:   tools/ros2-container/generate.sh
+
+project:
+  name: my-robot
+  display_name: My Robot
+
+ros:
+  distro: lyrical
+  # Multi-arch (amd64 + arm64): runs natively on Apple Silicon and ARM boards.
+  base_image: "ros:{distro}-ros-base"
+  domain_id: 0
+
+workspace:
+  host_path: .                      # this repo is bind-mounted into the container...
+  container_path: /ros2_ws          # ...here
+  ros_ws_subdir: .                  # colcon workspace (with src/) relative to host_path, e.g. ros2_ws
+
+dependencies:
+  apt:
+    Python Scientific Stack:
+      - python3-numpy
+      - python3-scipy
+      - python3-pandas
+      - python3-matplotlib
+      - python3-opencv
+      - python3-pyqt5
+    Developer Utilities:
+      - git-lfs
+      - wget
+      - htop
+      - iputils-ping
+      - tree
+      - terminator
+      - clangd
+      - gdb
+    Linters and Formatters:
+      - clang-format
+      - clang-tidy
+    Graphics (Mesa, EGL, OpenGL):
+      - libegl-dev
+      - libgl1-mesa-dev
+      - mesa-utils
+      - libgl1
+      - libglx-mesa0
+      - libegl1
+      - mesa-va-drivers
+      - vainfo
+  ros:                              # installed as ros-lyrical-<name>
+    ROS Desktop: [desktop]
+    Standard ROS 2 Packages:
+      - ros_gz
+      - controller_manager
+      - ros2_control
+      - vision_msgs
+      - image_transport
+      - plotjuggler                 # plotjuggler_ros (ROS topic plugins) isn't released for lyrical yet
+      - urdf
+      - xacro
+      - tf2_tools
+      - geometry2
+      - launch_ros
+      - launch_xml
+      - robot_state_publisher
+      - joint_state_publisher
+      - joint_state_publisher_gui
+      - diagnostic_updater
+      - camera_calibration
+      - camera_info_manager
+      - image_pipeline
+  pip:
+    - ruff~=0.15.4
+    - rosbags~=0.11.2
+  # Build from source instead of a wheel, e.g. so pybullet's EGL renderer links the Mesa libs above:
+  # pip_source_builds: [pybullet]
+  pip_source_builds: []
+
+rmw:
+  implementation: rmw_cyclonedds_cpp
+  cyclonedds_interfaces:            # loopback only: DDS never leaves this machine
+    - {name: lo, multicast: true}
+    # - {name: eth0, multicast: true}   # uncomment to talk DDS to other hosts on this LAN
+
+display:
+  x11: true                         # linux variant
+  mesa_dri: true                    # pass /dev/dri on Linux
+  nvidia: true                      # linux-nvidia variant (picked automatically when available)
+  wslg: true                        # windows-wslg variant
+  vnc:                              # mac-vnc variant: http://localhost:6080/vnc.html
+    enabled: true
+    password: changeme
+    geometry: 1920x1080
+
+host:                               # Linux only
+  privileged: true
+  network_mode: host
+  mount_dev: true
+
+extra:
+  # Extra bind mounts (all variants):
+  # volumes: ["/opt/vendor_sdk:/opt/vendor_sdk:ro"]
+  volumes: []
+  # Extra runtime environment variables (all variants):
+  # env: {LD_LIBRARY_PATH: /opt/vendor_sdk/lib}
+  env: {}
+  # Specific devices, if you turn off host.privileged / host.mount_dev (Linux only):
+  # devices: ["/dev/ttyUSB0:/dev/ttyUSB0"]
+  devices: []
+  # Extra Dockerfile RUN steps, appended after everything else
+  run: []
+  # Build-time ENV lines in the Dockerfile:
+  # dockerfile_env: {VENDOR_SDK_ROOT: /opt/vendor_sdk}
+  dockerfile_env: {}
+
+rosdep:
+  # Custom rosdep keys (e.g. mapping a key to a pip package), relative to this file:
+  # rules_file: rosdep/rules.yaml
+  rules_file: null
+
+build:
+  cmake_args: -DCMAKE_BUILD_TYPE=Release
+  merge_compile_commands: true
+  post_build_hook: null
+
+editor:
+  enabled: true
+  editors: [vscode]                 # add cursor for Cursor-flavoured configs
+  extensions:
+    common:
+      - ms-vscode.cmake-tools
+      - ms-vscode.cpptools-themes
+      - ranch-hand-robotics.rde-ros-2
+      - ranch-hand-robotics.urdf-editor
+      - redhat.vscode-xml
+      - xaver.clang-format
+      - charliermarsh.ruff
+      - mermaidchart.vscode-mermaid-chart
+      - anthropic.claude-code
+    vscode:
+      - ms-python.python
+      - ms-python.debugpy
+      - ms-vscode.cpptools
+      - ms-vscode.cpptools-extension-pack
+      - ms-vsliveshare.vsliveshare
+    cursor:
+      - anysphere.cursorpyright
+      - anysphere.cpptools
+      - typefox.open-collaboration-tools
+  post_create_command: >-
+    rosdep update
+    && git submodule update --init --recursive
+    && (git lfs pull || true)
