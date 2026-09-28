@@ -1,0 +1,137 @@
+# Default values for every generator option.
+#
+# Your config file (ros2-container.yaml) is deep-merged over this file:
+#   - maps merge key by key, so you only need to set what you change;
+#   - lists REPLACE the default list entirely;
+#   - unknown keys are an error (to catch typos), except inside free-form maps
+#     (dependencies.apt, dependencies.ros, extra.env, extra.dockerfile_env,
+#     bash.aliases, editor.settings) whose keys are yours to choose.
+# Relative paths are resolved against the directory of your config file,
+# except workspace.host_path, which is relative to the output root.
+
+project:
+  name: my-robot                    # slug: image, container and compose project names
+  display_name: My Robot            # shown in the VS Code dev container picker
+
+output:
+  root: .                           # where generated folders go (-o overrides it)
+  docker_dir: Docker
+  devcontainer_dir: .devcontainer
+  vscode_dir: .vscode
+
+ros:
+  distro: jazzy
+  # {distro} is substituted. The official `ros` images are multi-arch (amd64 + arm64,
+  # so native on Apple Silicon); osrf/ros:*-desktop images are amd64-only.
+  base_image: "ros:{distro}-ros-base"
+  domain_id: 0
+
+workspace:
+  host_path: .                      # folder bind-mounted into the container (relative to output root)
+  container_path: /ros2_ws          # where it is mounted
+  ros_ws_subdir: .                  # colcon workspace (contains src/), relative to host_path
+
+dependencies:
+  # apt packages, one cached `RUN apt-get install` per named group, in order.
+  # Set a group to [] to drop it.
+  apt:
+    Developer Utilities: [git-lfs, wget, htop, iputils-ping, tree, gdb, clangd]
+    Linters and Formatters: [clang-format, clang-tidy]
+  # ROS packages by short name, installed as ros-<distro>-<name> (underscores
+  # become dashes). Names that already start with "ros-" are used as-is.
+  ros:
+    ROS Desktop: [desktop]          # RViz, rqt, demos (what the *-desktop images contain)
+  # pip requirement specifiers, written to Docker/python-requirements.txt.
+  pip: []
+  # Packages pip builds from source instead of installing a wheel (pip install --no-binary <pkg>).
+  pip_source_builds: []
+
+rmw:
+  implementation: rmw_cyclonedds_cpp   # or rmw_fastrtps_cpp, rmw_zenoh_cpp, ...
+  # CycloneDDS only: interfaces DDS may use. Loopback-only keeps discovery
+  # traffic off robot/camera NICs; add a LAN interface to talk to other hosts.
+  cyclonedds_interfaces:
+    - {name: lo, multicast: true}
+
+display:
+  x11: true                         # Linux hosts: forward the host X11 display
+  mesa_dri: true                    # Linux hosts: pass /dev/dri (Intel/AMD GPU via Mesa)
+  nvidia: true                      # Linux hosts: extra variant using the NVIDIA container toolkit; enable this on computers with NVIDIA graphics cards
+  wslg: true                        # Windows hosts: use WSLg's built-in X11/Wayland server
+  vnc:                              # macOS (or any host): virtual desktop served via noVNC
+    enabled: true
+    password: changeme              # default only; the real value lives in Docker/.env
+    geometry: 1920x1080
+    novnc_port: 6080
+    vnc_port: 5901
+
+host:                               # Linux overlay only
+  privileged: true                  # broad hardware access
+  network_mode: host                # devices on the LAN
+  mount_dev: true                   # bind-mount host /dev
+
+extra:                              # escape hatches (all empty by default)
+  # Extra compose bind mounts, added to the base compose file (all variants).
+  #   volumes: ["/opt/vendor_sdk:/opt/vendor_sdk:ro", "~/datasets:/data"]
+  volumes: []
+  # Extra runtime env vars (compose `environment:`, all variants).
+  #   env: {LD_LIBRARY_PATH: /opt/vendor_sdk/lib}
+  env: {}
+  # Extra device passthrough (Linux overlay only; redundant with privileged + mount_dev).
+  #   devices: ["/dev/ttyUSB0:/dev/ttyUSB0", "/dev/video0:/dev/video0"]
+  devices: []
+  # Raw shell steps appended as RUN lines at the end of the Dockerfile.
+  # A step is a string (one RUN) or {comment, cmd} to add a comment above it.
+  run: []
+  # Build-time ENV lines in the Dockerfile (baked into the image, visible to later RUN steps).
+  #   dockerfile_env: {VENDOR_SDK_ROOT: /opt/vendor_sdk}
+  dockerfile_env: {}
+
+rosdep:
+  # Custom rosdep rules, copied into Docker/ and registered in the image.
+  #   rules_file: rosdep/my_rules.yaml
+  rules_file: null
+
+bash:
+  aliases:
+    gitst: git status
+    gitb: git branch
+    gitl: git pull
+    gitp: git push
+    u: cd ..
+    uu: cd ../..
+    uuu: cd ../../..
+
+build:
+  cmake_args: -DCMAKE_BUILD_TYPE=Release
+  merge_compile_commands: true      # merge build/*/compile_commands.json for clangd/IntelliSense
+  post_build_hook: null             # shell command run in the workspace after each `cb`
+
+ide:
+  pyright_config: true              # emit pyrightconfig.json; its extraPaths are refreshed after each build
+
+editor:
+  enabled: true                     # emit .devcontainer/ and .vscode/
+  editors: [vscode]                 # vscode and/or cursor
+  extensions:
+    common:
+      - ms-vscode.cmake-tools
+      - ms-vscode.cpptools-themes
+      - ranch-hand-robotics.rde-ros-2
+      - ranch-hand-robotics.urdf-editor
+      - redhat.vscode-xml
+      - xaver.clang-format
+      - charliermarsh.ruff
+    vscode:
+      - ms-python.python
+      - ms-python.debugpy
+      - ms-vscode.cpptools
+      - ms-vscode.cpptools-extension-pack
+    cursor:
+      - anysphere.cursorpyright
+      - anysphere.cpptools
+  settings:                         # merged into .vscode/settings.json
+    files.associations: {"*.xacro": xml, "*.launch": xml, "*.urdf": xml, "*.sdf": xml}
+    files.watcherExclude: {"**/build/**": true, "**/install/**": true, "**/log/**": true}
+    search.exclude: {"**/build": true, "**/install": true, "**/log": true}
+  post_create_command: rosdep update && git submodule update --init --recursive
