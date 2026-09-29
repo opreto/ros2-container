@@ -6,7 +6,8 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from functools import reduce
+from typing import Callable, Iterable
 
 import yaml
 
@@ -42,10 +43,11 @@ class Config:
 def load(config_files: Iterable[str]) -> Config:
     """Merge defaults <- config files (left to right). The config is the only source of settings."""
     files = [Path(f) for f in config_files] or [_default_config_file()]
-    data = _read(DEFAULTS_FILE)
+    defaults = _read(DEFAULTS_FILE)
+    data = defaults
     for path in files:
         data = deep_merge(data, _read(path))
-    _validate(data, _read(DEFAULTS_FILE))
+    _validate(data, defaults)
 
     config_dir = files[-1].resolve().parent
     root = (config_dir / data["output"]["root"]).resolve()
@@ -62,6 +64,11 @@ def deep_merge(base: dict, override: dict) -> dict:
         else:
             merged[key] = value
     return merged
+
+
+def flag(path: str) -> Callable[[dict], bool]:
+    """Predicate that is true when the dotted `path` (e.g. "editor.enabled") is truthy in a dict."""
+    return lambda data: bool(reduce(lambda d, key: d[key], path.split("."), data))
 
 
 def _default_config_file() -> Path:

@@ -27,6 +27,9 @@ def build(cfg: Config) -> dict:
     install_dir = f"/opt/{name}"
     enabled_variants = variants.enabled(d)
     ide_scripts = d["editor"]["enabled"] or d["ide"]["pyright_config"]
+    post_create = d["editor"]["post_create_command"]
+    if ide_scripts:
+        post_create += f" && python3 {install_dir}/scripts/generate_ide_config.py"
 
     def in_container(host_path: Path) -> str | None:
         """Where a host path under the workspace mount appears inside the container."""
@@ -54,19 +57,18 @@ def build(cfg: Config) -> dict:
             "settings": in_container(root / dirs["vscode"] / "settings.json") if d["editor"]["enabled"] else None,
             "pyright": in_container(root / "pyrightconfig.json") if d["ide"]["pyright_config"] else None,
         },
-        "devcontainers": _devcontainers(d, enabled_variants, root / dirs["devcontainer"], docker_dir, install_dir, ide_scripts),
+        "devcontainers": _devcontainers(d, enabled_variants, root / dirs["devcontainer"], docker_dir, post_create),
         "vscode_settings": _vscode_settings(d, ros_ws),
         "pyright_config": {"extraPaths": [], "exclude": ["**/build", "**/install", "**/log"]},
     }
 
 
-def _devcontainers(d, enabled_variants, devcontainer_dir: Path, docker_dir: Path, install_dir, ide_scripts) -> list[dict]:
+def _devcontainers(
+    d: dict, enabled_variants: list[variants.Variant], devcontainer_dir: Path, docker_dir: Path, post_create: str
+) -> list[dict]:
     """One devcontainer.json per (variant, editor); cursor configs get a `-cursor` suffix."""
     if not d["editor"]["enabled"]:
         return []
-    post_create = d["editor"]["post_create_command"]
-    if ide_scripts:
-        post_create += f" && python3 {install_dir}/scripts/generate_ide_config.py"
     out = []
     for editor in d["editor"]["editors"]:
         extensions = d["editor"]["extensions"]["common"] + d["editor"]["extensions"][editor]

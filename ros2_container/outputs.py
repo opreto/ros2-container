@@ -14,7 +14,7 @@ from typing import Callable, Optional
 
 import jinja2
 
-from .config import REPO_DIR
+from .config import REPO_DIR, flag
 
 TEMPLATES_DIR = REPO_DIR / "templates"
 
@@ -47,8 +47,6 @@ def overlay(name: str) -> Callable[[dict], bool]:
     return lambda ctx: name in ctx["overlays"]
 
 
-editor = lambda ctx: ctx["editor"]["enabled"]  # noqa: E731
-
 OUTPUTS = (
     Output("Docker/Dockerfile.j2", "{docker}/Dockerfile"),
     Output("Docker/compose.yml.j2", "{docker}/compose.yml"),
@@ -60,9 +58,9 @@ OUTPUTS = (
     Output("Docker/host_gpu_detect.py", "{docker}/host_gpu_detect.py", when=overlay("nvidia"), executable=True),
     Output("Docker/entrypoint.sh.j2", "{docker}/entrypoint.sh", executable=True),
     Output("Docker/bash_aliases.j2", "{docker}/.bash_aliases"),
-    Output("Docker/cyclonedds.xml.j2", "{docker}/cyclonedds.xml", when=lambda ctx: ctx["use_cyclonedds"]),
+    Output("Docker/cyclonedds.xml.j2", "{docker}/cyclonedds.xml", when=flag("use_cyclonedds")),
     Output("Docker/python-requirements.txt.j2", "{docker}/python-requirements.txt"),
-    Output("Docker/rosdep-rules.yaml.j2", "{docker}/rosdep-rules.yaml", when=lambda ctx: ctx["rosdep_rules"]),
+    Output("Docker/rosdep-rules.yaml.j2", "{docker}/rosdep-rules.yaml", when=flag("rosdep_rules")),
     Output("Docker/dockerignore.j2", "{docker}/.dockerignore"),
     Output("Docker/gitignore.j2", "{docker}/.gitignore"),
     Output("Docker/env.example.j2", "{docker}/.env.example"),
@@ -73,8 +71,8 @@ OUTPUTS = (
     Output("Docker/scripts/merge_compile_commands.sh.j2", "{docker}/scripts/merge_compile_commands.sh", executable=True),
     Output("Docker/scripts/generate_ide_config.py.j2", "{docker}/scripts/generate_ide_config.py", executable=True),
     Output("devcontainer/devcontainer.json.j2", "{devcontainer}/{item[folder]}/devcontainer.json", each="devcontainers"),
-    Output("vscode/settings.json.j2", "{vscode}/settings.json", when=editor, policy=Policy.BUILD_EDITED),
-    Output("pyrightconfig.json.j2", "pyrightconfig.json", when=lambda ctx: ctx["ide"]["pyright_config"], policy=Policy.BUILD_EDITED),
+    Output("vscode/settings.json.j2", "{vscode}/settings.json", when=flag("editor.enabled"), policy=Policy.BUILD_EDITED),
+    Output("pyrightconfig.json.j2", "pyrightconfig.json", when=flag("ide.pyright_config"), policy=Policy.BUILD_EDITED),
 )
 
 
