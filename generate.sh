@@ -9,6 +9,7 @@ VENV="${REPO_DIR}/.venv"
 helpFunction() {
   echo "Generate a ROS 2 dev container (Docker/, .devcontainer/, .vscode/) from a YAML/JSON config."
   echo "All settings, including the output location (output.root), come from the config file."
+  echo "Anything your config doesn't set comes from ${REPO_DIR}/defaults.yaml, which lists every option."
   echo ""
   echo "Usage: $0 [args]           Generate from the config (default: ./ros2-container.yaml)."
   echo "       $0 init [args]      Write a starter ./ros2-container.yaml to edit."

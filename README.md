@@ -7,10 +7,13 @@ Windows (WSLg).
 ## Quick start
 
 ```bash
-cd my-robot
-git submodule add <this-repo-url> tools/ros2-container
-tools/ros2-container/generate.sh init        # writes ./ros2-container.yaml (from examples/lyrical.yaml)
-# edit ros2-container.yaml: project name, ROS distro, dependencies, ...
+cd my-new-repo
+git submodule add git@github.com:opreto/ros2-container.git tools/ros2-container
+tools/ros2-container/generate.sh init
+```
+This writes a default `./ros2-container.yaml` from `examples/lyrical.yaml`.
+Edit this file to change the project name, ROS distro, dependencies, etc., then finish building with:
+```bash
 tools/ros2-container/generate.sh             # writes Docker/, .devcontainer/, .vscode/, pyrightconfig.json
 Docker/compose-up.sh up -d --build           # detects the host and starts the container
 Docker/compose-up.sh exec ros2-dev bash
