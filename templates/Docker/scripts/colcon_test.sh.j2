@@ -1,0 +1,134 @@
+#!/bin/bash
+# {{ header }}
+set -e # fail on any exit code not being 0
+
+helpFunction() {
+  echo "Run the ROS workspace's tests (build it first, e.g. with cb)."
+  echo ""
+  echo "Usage: $0 [args] [-- <colcon test args>]"
+  echo -e "\t-w, --workspace <DIR>  The colcon workspace to test. Defaults to \$ROS_WS ($ROS_WS)."
+  echo -e "\t-h, --help   Show help"
+  echo ""
+  echo "Anything after '--' is forwarded verbatim to 'colcon test', e.g.:"
+  echo -e "\t$0 -- --packages-select my_package"
+{% if test.skip_paths %}
+  echo ""
+  echo "Packages under {{ test.skip_paths | join(", ") }} are skipped automatically, unless the"
+  echo "forwarded args already scope packages themselves (--packages-select,"
+  echo "--packages-skip, or --packages-up-to), since colcon rejects combining those."
+{% endif %}
+}
+
+# ----- Pre-process long options so we can use getopts ----- #
+# Anything after `--` is captured verbatim and forwarded to `colcon test`
+# below, so callers can pass colcon-only flags (e.g. `--packages-select ...`)
+# without `getopts` mangling them character-by-character.
+args=()
+passthrough=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --workspace)
+      args+=("-w" "$2")
+      shift 2
+      ;;
+    --workspace=*)
+      args+=("-w" "${1#*=}")
+      shift
+      ;;
+    --help)
+      args+=("-h")
+      shift
+      ;;
+    --)
+      shift
+      passthrough+=("$@")
+      break
+      ;;
+    *)
+      args+=("$1")
+      shift
+      ;;
+  esac
+done
+
+# Restore positional parameters
+set -- "${args[@]}"
+
+# ---- getopts parsing ----
+workspaceParam=${ROS_WS:-{{ ros_ws }}}
+while getopts ":w:h" opt; do
+  case "$opt" in
+    w)
+      workspaceParam="$OPTARG"
+      ;;
+    h)
+      helpFunction
+      exit 0
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG"
+      helpFunction
+      exit 1
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument."
+      helpFunction
+      exit 1
+      ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+# Merge any leftover positionals (before `--`) with the `--` passthrough list,
+# preserving order, before forwarding to `colcon test`.
+set -- "$@" "${passthrough[@]}"
+
+# Validate
+# --------
+if ! [[ -d "$workspaceParam" ]]; then
+  echo "Directory $workspaceParam does not exist."
+  exit 1
+fi
+if ! [[ -f "$workspaceParam/install/setup.bash" ]]; then
+  echo "$workspaceParam has not been built yet. Build it first (e.g. with cb)."
+  exit 1
+fi
+
+# Run the script
+# --------------
+source /opt/ros/{{ ros.distro }}/setup.bash
+source "$workspaceParam/install/setup.bash"
+
+cd "$workspaceParam"
+
+colcon_test_args=(--event-handlers console_direct+)
+{% if test.skip_paths %}
+
+# Do not run tests for packages under test.skip_paths (e.g. vendored code not
+# maintained here) -- unless the caller already scoped packages themselves,
+# since colcon rejects combining --packages-skip with --packages-select/--packages-up-to.
+already_scoped=false
+for forwarded_arg in "$@"; do
+  case "$forwarded_arg" in
+    --packages-select | --packages-skip | --packages-up-to)
+      already_scoped=true
+      break
+      ;;
+  esac
+done
+
+if ! $already_scoped; then
+  skip_paths=({% for path in test.skip_paths %}{{ path | shquote }}{{ " " if not loop.last }}{% endfor %})
+  mapfile -t skipped_packages < <(colcon list --base-paths "${skip_paths[@]}" --names-only 2>/dev/null)
+  if ((${#skipped_packages[@]} > 0)); then
+    colcon_test_args+=(--packages-skip "${skipped_packages[@]}")
+  fi
+fi
+{% endif %}
+
+# Record a failing `colcon test` instead of exiting on it (set -e), so the
+# results summary below still prints.
+ret=0
+colcon test "${colcon_test_args[@]}" "$@" || ret=$?
+colcon test-result --verbose || ret=$((ret ? ret : $?))
+exit $ret

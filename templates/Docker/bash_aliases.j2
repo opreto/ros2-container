@@ -39,6 +39,12 @@ cbs() {
   return $ret
 }
 
+# Test the colcon workspace ($ROS_WS) from any directory, then print the results.
+# Anything after `--` goes to `colcon test`, e.g. `ct -- --packages-select my_pkg`.
+ct() {
+  bash {{ install_dir }}/scripts/colcon_test.sh --workspace="$ROS_WS" "$@"
+}
+
 # Remove the colcon build artifacts.
 cclean() {
   rm -rf "$ROS_WS/build" "$ROS_WS/install" "$ROS_WS/log"

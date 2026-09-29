@@ -107,6 +107,13 @@ build:
   merge_compile_commands: true      # merge build/*/compile_commands.json for clangd/IntelliSense
   post_build_hook: null             # shell command run in the workspace after each `cb`
 
+test:
+  # Folders (relative to the colcon workspace) whose packages `ct` doesn't test,
+  # e.g. vendored code you don't maintain. Ignored when you scope packages yourself
+  # (ct -- --packages-select ...).
+  #   skip_paths: [src/external]
+  skip_paths: []
+
 ide:
   pyright_config: true              # emit pyrightconfig.json; its extraPaths are refreshed after each build
 

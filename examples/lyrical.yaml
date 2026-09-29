@@ -126,6 +126,11 @@ build:
   merge_compile_commands: true
   post_build_hook: null
 
+test:
+  # Workspace folders whose packages `ct` doesn't test, e.g. vendored code:
+  # skip_paths: [src/external]
+  skip_paths: []
+
 editor:
   enabled: true
   editors: [vscode]                 # add cursor for Cursor-flavoured configs

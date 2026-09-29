@@ -59,6 +59,7 @@ Turn variants off under `display:` in the config.
 
 - `cb` runs rosdep install and `colcon build --symlink-install`. It then merges `compile_commands.json` for clangd and IntelliSense, and refreshes the Pylance `extraPaths` for your packages. Arguments after `--` go to colcon.
 - `cbs` runs `cb` and then sources the workspace. `cclean` deletes `build/`, `install/` and `log/`.
+- `ct` runs `colcon test` on the built workspace and prints `colcon test-result --verbose`. It exits non-zero if any test fails. Arguments after `--` go to colcon (e.g. `ct -- --packages-select my_pkg`). Set `test.skip_paths` in the config to skip packages you don't maintain.
 - Put personal aliases in `Docker/.bash_aliases_personal`.
 
 ## Extending the generator
