@@ -16,8 +16,6 @@ services:
     volumes:
       # The project workspace
       - {{ workspace_mount }}:{{ workspace.container_path }}
-      # Personal, uncommitted aliases
-      - ./.bash_aliases_personal:/root/.bash_aliases_personal
 {% for volume in extra.volumes %}
       - {{ volume | quote }}
 {% endfor %}

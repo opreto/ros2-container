@@ -1,5 +1,5 @@
 # {{ header }}
-# Put personal aliases in Docker/.bash_aliases_personal (not committed).
+# Put personal aliases and shell settings in Docker/.bashrc_personal (create it; it isn't committed).
 
 {% for name, command in bash.aliases.items() if command %}
 alias {{ name }}={{ command | shquote }}

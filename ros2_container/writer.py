@@ -13,7 +13,7 @@ MANIFEST = ".ros2-container.generated"  # under the output root, so it survives 
 def write_files(root: Path, files: list[File], force: bool = False) -> int:
     """Write `files` under `root`, delete owned files no longer produced, and return an exit code."""
     previously_owned = _read_manifest(root)
-    owned = {f.path for f in files if not f.seed}
+    owned = {f.path for f in files}
     conflicts = sorted(p for p in owned - previously_owned if (root / p).exists())
     if conflicts and not force:
         print("Refusing to overwrite files the generator did not create (use --force):")
@@ -23,8 +23,6 @@ def write_files(root: Path, files: list[File], force: bool = False) -> int:
     written = 0
     for f in files:
         target = root / f.path
-        if f.seed and target.exists():
-            continue
         if not target.exists() or target.read_text() != f.content:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(f.content)

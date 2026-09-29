@@ -89,7 +89,10 @@ COPY cyclonedds.xml {{ install_dir }}/cyclonedds.xml
 COPY .bash_aliases /root/.bash_aliases
 RUN echo "source /opt/ros/{{ ros.distro }}/setup.bash" >> /root/.bashrc \
     && echo "[ -f /root/.bash_aliases ] && source /root/.bash_aliases" >> /root/.bashrc \
-    && echo "[ -f /root/.bash_aliases_personal ] && source /root/.bash_aliases_personal" >> /root/.bashrc \
+{% if docker_dir_in_container %}
+    # Optional personal shell setup, read from the live workspace (gitignored).
+    && echo "[ -f {{ docker_dir_in_container }}/.bashrc_personal ] && source {{ docker_dir_in_container }}/.bashrc_personal" >> /root/.bashrc \
+{% endif %}
     # The workspace is bind-mounted from the host, so its owner differs from root. Trust it and the
     # repositories inside it (submodules, vcs imports). Git < 2.46 can't express "and everything
     # below", so it trusts every directory instead, or nested repositories would be blocked.

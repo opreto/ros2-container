@@ -55,8 +55,7 @@ config only needs the settings it changes; the rest come from [defaults.yaml](de
 
 The generator lists the files it owns in `.ros2-container.generated`, next to the generated folders. A re-run updates
 them and deletes any it no longer produces. It won't overwrite files it didn't
-create unless you pass `-f`/`--force`. `Docker/.bash_aliases_personal` is written
-once and then left alone. Run `generate.sh -h` for all options.
+create unless you pass `-f`/`--force`. Run `generate.sh -h` for all options.
 
 ## Host variants
 
@@ -88,7 +87,7 @@ the cached image layers.
   - Other arguments, and anything after `--`, go to colcon (e.g. `cb -- --packages-select my_pkg`).
 - `cbs` runs `cb`, then sources the workspace. `cclean` deletes `build/`, `install/` and `log/`.
 - `ct` runs `colcon test` and prints `colcon test-result --verbose`, exiting non-zero if a test fails. Arguments after `--` go to colcon (e.g. `ct -- --packages-select my_pkg`). `test.skip_paths` in the config skips packages you don't maintain.
-- Put personal aliases in `Docker/.bash_aliases_personal`.
+- For personal aliases and shell settings, create `Docker/.bashrc_personal`. It's gitignored, and every new shell in the container sources it.
 
 `pyrightconfig.json` is written at the workspace root inside the container, by
 `cb` and when the dev container is created. It is not generated on the host.

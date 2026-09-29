@@ -25,7 +25,6 @@ class Output:
     when: Callable[[dict], bool] = lambda ctx: True
     each: Optional[str] = None  # render once per element of ctx[each], exposed to the template as `item`
     executable: bool = False
-    seed: bool = False  # written only if missing, then left to the user; otherwise owned and regenerated
 
 
 @dataclass(frozen=True)
@@ -33,7 +32,6 @@ class File:
     path: Path  # relative to output root
     content: str
     executable: bool
-    seed: bool
 
 
 def overlay(name: str) -> Callable[[dict], bool]:
@@ -55,7 +53,6 @@ OUTPUTS = (
     Output("Docker/rosdep-rules.yaml.j2", "{docker}/rosdep-rules.yaml", when=flag("rosdep_rules")),
     Output("Docker/dockerignore.j2", "{docker}/.dockerignore"),
     Output("Docker/gitignore.j2", "{docker}/.gitignore"),
-    Output("Docker/bash_aliases_personal.j2", "{docker}/.bash_aliases_personal", seed=True),
     Output("Docker/scripts/colcon_build.sh.j2", "{docker}/scripts/colcon_build.sh", executable=True),
     Output("Docker/scripts/colcon_test.sh.j2", "{docker}/scripts/colcon_test.sh", executable=True),
     Output("Docker/scripts/generate_ide_config.py.j2", "{docker}/scripts/generate_ide_config.py", when=flag("ide.pyright_config"), executable=True),
@@ -73,7 +70,7 @@ def render(outputs: tuple[Output, ...], ctx: dict) -> list[File]:
         for item in ctx[out.each] if out.each else [None]:
             dest = out.dest.format(docker=ctx["docker_dir"], item=item)
             content = env.get_template(out.template).render(ctx, item=item)
-            files.append(File(Path(dest), content, out.executable, out.seed))
+            files.append(File(Path(dest), content, out.executable))
     return files
 
 

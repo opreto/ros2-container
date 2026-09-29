@@ -101,7 +101,7 @@ rosdep:
   rules_file: null
 
 bash:
-  # Team-wide aliases for the container shell. Personal ones go in Docker/.bash_aliases_personal.
+  # Team-wide aliases for the container shell. Personal ones go in Docker/.bashrc_personal.
   #   aliases: {gitst: git status}
   aliases: {}
 
