@@ -69,7 +69,7 @@ display:
   wslg: true                        # Windows hosts: use WSLg's built-in X11/Wayland server
   vnc:                              # macOS (or any host): virtual desktop served via noVNC
     enabled: true
-    password: changeme              # default only; the real value lives in Docker/.env
+    password: changeme              # to change: edit, run generate.sh, then compose-up.sh up -d (no image rebuild)
     geometry: 1920x1080
     novnc_port: 6080
     vnc_port: 5901

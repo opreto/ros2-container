@@ -51,18 +51,12 @@ config only needs the settings it changes; the rest come from [defaults.yaml](de
 - **Escape hatches:** `extra.volumes`, `extra.env`, `extra.devices`, `extra.run` (raw Dockerfile steps), `extra.dockerfile_env` and `rosdep.rules_file`.
 - **Hardware access** is off by default. List specific devices in `extra.devices` (they must exist when the container starts), or set `host.hardware_access: true` for privileged mode and the host's whole `/dev`, which handles hot-plugged USB but also exposes raw disks.
 - **Layered configs:** `generate.sh -c base.yaml -c robot.yaml` merges the files left to right, so projects can share a base config.
-- **Relative paths** chain from the config file. Usually all three are `.`, meaning the config, the generated folders and the colcon workspace are all at the repo root.
-
-  | Setting | Relative to |
-  |---|---|
-  | `output.root`, `rosdep.rules_file` | the directory of the config file (the last `-c` file) |
-  | `workspace.host_path` (mounted at `workspace.container_path`) | `output.root` |
-  | `workspace.ros_ws_subdir` (the colcon workspace with `src/`) | `workspace.host_path` |
+- **Relative paths** chain from the config file; the header of your config (and of [defaults.yaml](defaults.yaml)) explains how. Usually they are all `.`, meaning the config, the generated folders and the colcon workspace are all at the repo root.
 
 The generator lists the files it owns in `.ros2-container.generated`, next to the generated folders. A re-run updates
 them and deletes any it no longer produces. It won't overwrite files it didn't
-create unless you pass `-f`/`--force`. `Docker/.env` and `Docker/.bash_aliases_personal`
-are written once and then left alone. Run `generate.sh -h` for all options.
+create unless you pass `-f`/`--force`. `Docker/.bash_aliases_personal` is written
+once and then left alone. Run `generate.sh -h` for all options.
 
 ## Host variants
 
@@ -80,6 +74,11 @@ variants off under `display:` in the config.
 The `mac-vnc` ports are only published on localhost, so the container's desktop isn't reachable from external networks. 
 To access it from another machine, tunnel over SSH:
 `ssh -L 6080:localhost:6080 <host>`.
+
+To change the VNC password or screen size, edit `display.vnc` in the config, run
+`generate.sh`, then `Docker/compose-up.sh up -d`. That recreates the container
+without rebuilding the image. In VS Code, use **Rebuild Container**, which reuses
+the cached image layers.
 
 ## Inside the container
 

@@ -76,7 +76,7 @@ if [[ -n "$jobs" ]]; then
 fi
 {% if build.merge_compile_commands %}
 
-# Emit compile_commands.json for merge_compile_commands.sh. Set via the
+# Emit compile_commands.json for the merge below. Set via the
 # environment (CMake >= 3.17) rather than -D, so CMake doesn't warn
 # "Manually-specified variables were not used" for packages with no compiled
 # targets (e.g. a fresh `ros2 pkg create` without --node-name).
@@ -89,7 +89,15 @@ colcon build \
   --cmake-args $cmakeArgs \
   --symlink-install "${colconArgs[@]}"
 {% if build.merge_compile_commands %}
-"$THIS_DIR/merge_compile_commands.sh" "$WORKSPACE"
+
+# Merge the packages' compile_commands.json into one at the workspace root for
+# clangd/IntelliSense. Only CMake packages emit one; with none, drop any stale merge.
+mapfile -t compileCommands < <(find build -name compile_commands.json 2>/dev/null)
+if ((${#compileCommands[@]} > 0)); then
+  jq -s add "${compileCommands[@]}" > compile_commands.json.tmp && mv compile_commands.json.tmp compile_commands.json
+else
+  rm -f compile_commands.json
+fi
 {% endif %}
 {% if ide.pyright_config %}
 python3 "$THIS_DIR/generate_ide_config.py"
