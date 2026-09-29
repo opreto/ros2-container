@@ -1,6 +1,7 @@
-# Default values for every generator option.
+# Default values for every generator option. `generate.sh init` writes a starter
+# config with all of them filled in.
 #
-# Your config file (ros2-container.yaml) is deep-merged over this file:
+# Your config file (ros2-container.yaml) is deep-merged over the generator's defaults.yaml:
 #   - maps merge key by key, so you only need to set what you change;
 #   - lists REPLACE the default list entirely;
 #   - unknown keys are an error (to catch typos), except inside free-form maps
@@ -44,17 +45,20 @@ dependencies:
     Linters and Formatters: [clang-format, clang-tidy]
   # ROS packages by short name, installed as ros-<distro>-<name> (underscores
   # become dashes). Names that already start with "ros-" are used as-is.
+  # `desktop` adds RViz, rqt and the demos (what the *-desktop images contain).
   ros:
-    ROS Desktop: [desktop]          # RViz, rqt, demos (what the *-desktop images contain)
+    ROS Desktop: [desktop]
   # pip requirement specifiers, written to Docker/python-requirements.txt.
   pip: []
-  # Packages pip builds from source instead of installing a wheel (pip install --no-binary <pkg>).
+  # Packages pip builds from source instead of installing a wheel (pip install --no-binary <pkg>),
+  # e.g. [pybullet], so its EGL renderer links the Mesa libraries installed by apt.
   pip_source_builds: []
 
 rmw:
   implementation: rmw_cyclonedds_cpp   # or rmw_fastrtps_cpp, rmw_zenoh_cpp, ...
   # CycloneDDS only: interfaces DDS may use. Loopback-only keeps discovery
-  # traffic off robot/camera NICs; add a LAN interface to talk to other hosts.
+  # traffic off robot/camera NICs; add a LAN interface to talk to other hosts,
+  # e.g. {name: eth0, multicast: true}.
   cyclonedds_interfaces:
     - {name: lo, multicast: true}
 

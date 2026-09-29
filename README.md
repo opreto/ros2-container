@@ -11,8 +11,9 @@ cd my-new-repo
 git submodule add git@github.com:opreto/ros2-container.git tools/ros2-container
 tools/ros2-container/generate.sh init
 ```
-This writes a default `./ros2-container.yaml` from `examples/lyrical.yaml`.
-Edit this file to change the project name, ROS distro, dependencies, etc., then finish building with:
+This writes `./ros2-container.yaml`: `examples/lyrical.yaml` merged over the
+generator's [defaults.yaml](defaults.yaml), so every option is listed with its
+value and comments. Edit it to change the project name, ROS distro, dependencies, etc., then finish building with:
 ```bash
 tools/ros2-container/generate.sh             # writes Docker/, .devcontainer/, .vscode/
 Docker/compose-up.sh up -d --build           # detects the host and starts the container
@@ -27,8 +28,9 @@ own virtualenv in `tools/ros2-container/.venv`.
 
 ## Changing the container
 
-Edit `ros2-container.yaml`, then re-run `generate.sh` and rebuild. Every option
-and its default is documented in [defaults.yaml](defaults.yaml). A few rules:
+Edit `ros2-container.yaml`, then re-run `generate.sh` and rebuild. A config from
+`init` already lists every option; a hand-written one only needs the settings it
+changes, and everything else comes from [defaults.yaml](defaults.yaml). A few rules:
 
 - **Merging:** maps merge over the defaults (including the named dependency groups), and lists replace them. Unknown keys are an error.
 - **Dependencies:** `dependencies.apt` and `dependencies.ros` are named groups. Each group becomes one cached `RUN` layer. ROS packages use short names (`robot_state_publisher` becomes `ros-<distro>-robot-state-publisher`).
@@ -77,4 +79,5 @@ Turn variants off under `display:` in the config.
 - **Add a generated file:** add a template under `templates/` and one row to `OUTPUTS` in [ros2_container/outputs.py](ros2_container/outputs.py).
 - **Add a host type:** add one entry to `VARIANTS` in [ros2_container/variants.py](ros2_container/variants.py), plus its `compose.<overlay>.yml.j2` if it needs a new overlay, and a line in `candidates()` in [compose-up.sh.j2](templates/Docker/compose-up.sh.j2) so it is auto-detected.
 - **Add a derived template value:** compute it in [ros2_container/context.py](ros2_container/context.py). Templates only loop and branch.
-- **Add a config option:** give it a default in [defaults.yaml](defaults.yaml) and use it in a template.
+- **Add a config option:** give it a default and a comment in [defaults.yaml](defaults.yaml) and use it in a template. `init` copies both into new configs.
+- **Add an example:** add `examples/<name>.yaml` with only the settings that differ from the defaults (`generate.sh init -d <name>`).

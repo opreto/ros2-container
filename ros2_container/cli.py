@@ -48,8 +48,6 @@ def init_config(distro: str, name: str | None) -> int:
     if dest.exists():
         raise config.ConfigError(f"{dest} already exists")
     name = name or re.sub(r"[^a-z0-9_-]+", "-", Path.cwd().name.lower()).strip("-")
-    text = re.sub(r"(?m)^(  name: ).*$", rf"\g<1>{name}", example.read_text(), count=1)
-    text = re.sub(r"(?m)^(  display_name: ).*$", rf"\g<1>{name.replace('-', ' ').title()}", text, count=1)
-    dest.write_text(text)
-    print(f"Wrote {dest}. Edit it, then run generate.sh.")
+    dest.write_text(config.scaffold(example, name, display_name=name.replace("-", " ").title()))
+    print(f"Wrote {dest} with every option set. Edit it, then run generate.sh.")
     return 0

@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import copy
+import io
 import json
 import re
 from dataclasses import dataclass
-from pathlib import Path
 from functools import reduce
+from itertools import takewhile
+from pathlib import Path
 from typing import Callable, Iterable
 
-import yaml
+from ruamel.yaml import YAML
+from ruamel.yaml.comments import CommentedBase, CommentedMap
 
 REPO_DIR = Path(__file__).resolve().parent.parent
 DEFAULTS_FILE = REPO_DIR / "defaults.yaml"
@@ -66,6 +70,23 @@ def deep_merge(base: dict, override: dict) -> dict:
     return merged
 
 
+def scaffold(example: Path, name: str, display_name: str) -> str:
+    """A complete starter config: defaults.yaml with `example` merged over it, keeping both files' comments.
+
+    Every option appears with its value, documented by the comments in defaults.yaml,
+    so users never need to look anything up there.
+    """
+    defaults = _read(DEFAULTS_FILE)
+    data = copy.deepcopy(defaults)
+    _merge_commented(data, _read(example))
+    data["project"]["name"], data["project"]["display_name"] = name, display_name
+    _validate(data, defaults)
+    data.ca.comment = None  # defaults.yaml's header; replaced below
+    out = io.StringIO()
+    _yaml().dump(data, out)
+    return _scaffold_header(example) + out.getvalue()
+
+
 def flag(path: str) -> Callable[[dict], bool]:
     """Predicate that is true when the dotted `path` (e.g. "editor.enabled") is truthy in a dict."""
     return lambda data: bool(reduce(lambda d, key: d[key], path.split("."), data))
@@ -82,7 +103,7 @@ def _read(path: Path) -> dict:
     if not path.exists():
         raise ConfigError(f"Config file not found: {path}")
     text = path.read_text()
-    data = json.loads(text) if path.suffix == ".json" else yaml.safe_load(text)
+    data = json.loads(text) if path.suffix == ".json" else _yaml().load(text)
     if not isinstance(data, dict):
         raise ConfigError(f"{path} must contain a mapping at the top level")
     return data
@@ -104,3 +125,53 @@ def _check_known_keys(data: dict, defaults: dict, prefix: str) -> None:
             raise ConfigError(f"Unknown config key: {path}")
         if isinstance(value, dict) and isinstance(defaults[key], dict) and path not in FREEFORM_KEYS:
             _check_known_keys(value, defaults[key], prefix=f"{path}.")
+
+
+def _yaml() -> YAML:
+    """Round-trip YAML: keeps comments, key order and quoting, so scaffold() can write them back out."""
+    rt = YAML()
+    rt.preserve_quotes = True
+    rt.width = 4096  # don't wrap long lines
+    rt.indent(mapping=2, sequence=4, offset=2)
+    rt.representer.add_representer(type(None), lambda r, _: r.represent_scalar("tag:yaml.org,2002:null", "null"))
+    return rt
+
+
+def _merge_commented(base: CommentedMap, override: CommentedMap) -> None:
+    """deep_merge in place. Comments on existing keys stay those of `base` (defaults.yaml documents
+    every option); keys new to `base`, such as extra dependency groups, bring their own.
+
+    New keys are appended to the end of a map. ruamel attaches a comment that follows a map to the
+    end-of-line comment of its last entry, if it has one, so the last entry of a free-form map in
+    defaults.yaml must not have an end-of-line comment, or the next key's comment would land above
+    the appended entries.
+    """
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(base.get(key), dict):
+            _merge_commented(base[key], value)
+        else:
+            if key not in base and key in override.ca.items:
+                base.ca.items[key] = override.ca.items[key]
+            base[key] = value
+            if isinstance(value, CommentedBase):
+                _drop_blank_comments(value)
+
+
+def _drop_blank_comments(node: CommentedBase) -> None:
+    """Remove comment slots that only hold blank lines, e.g. the gap after a list in the example file."""
+    for slots in node.ca.items.values():
+        for i, token in enumerate(slots):
+            if token is not None and not isinstance(token, list) and not token.value.strip():
+                slots[i] = None
+
+
+def _scaffold_header(example: Path) -> str:
+    """Intro for a scaffolded config, followed by defaults.yaml's header minus its first paragraph."""
+    header = list(takewhile(lambda line: line.startswith("#") or not line.strip(), DEFAULTS_FILE.read_text().splitlines(keepends=True)))
+    rules = header[header.index("#\n") :] if "#\n" in header else []
+    intro = (
+        f"# ros2-container config, created by `generate.sh init` from examples/{example.name} merged over\n"
+        "# the generator's defaults.yaml: every option is listed here with its value.\n"
+        "# Edit anything, then regenerate:   tools/ros2-container/generate.sh\n"
+    )
+    return intro + "".join(rules)

@@ -1,9 +1,9 @@
 # ROS 2 Lyrical Luth (Ubuntu 26.04) dev container.
 #
-# Only settings that differ from the generator's defaults.yaml are listed here;
-# see that file for every option (display variants, host access, escape hatches,
-# build/test settings, ...). Maps merge key by key; lists replace the default list.
-# Regenerate after any edit:   tools/ros2-container/generate.sh
+# Only settings that differ from the generator's defaults.yaml are listed here.
+# `generate.sh init` merges this file over defaults.yaml and writes the result, so
+# the starter config lists every option. Comments on keys that defaults.yaml already
+# has are taken from defaults.yaml; put documentation for existing options there.
 
 project:
   name: my-robot
@@ -65,17 +65,8 @@ dependencies:
   pip:
     - ruff~=0.16.9
     - rosbags~=0.11.5
-  # Build from source instead of a wheel, e.g. so pybullet's EGL renderer links the Mesa libs above:
-  # pip_source_builds: [pybullet]
-
-# DDS stays on loopback by default. To talk DDS to other hosts on this LAN:
-# rmw:
-#   cyclonedds_interfaces:
-#     - {name: lo, multicast: true}
-#     - {name: eth0, multicast: true}
 
 editor:
-  editors: [vscode]                 # add cursor for Cursor-flavoured configs
   extensions:                       # lists replace the defaults, so each list is complete
     common:
       - ms-vscode.cmake-tools
