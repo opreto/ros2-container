@@ -26,7 +26,7 @@ output:
   docker_dir: Docker                # .devcontainer/ and .vscode/ are always at the root
 
 ros:
-  distro: jazzy
+  distro: lyrical
   # {distro} is substituted. The official `ros` images are multi-arch (amd64 + arm64,
   # so native on Apple Silicon); osrf/ros:*-desktop images are amd64-only.
   base_image: "ros:{distro}-ros-base"
@@ -72,7 +72,6 @@ display:
     password: changeme              # to change: edit, run generate.sh, then compose-up.sh up -d (no image rebuild)
     geometry: 1920x1080
     novnc_port: 6080
-    vnc_port: 5901
 
 host:                               # Linux overlay only
   # Privileged mode plus the host's /dev: every device, including raw disks, and
@@ -90,8 +89,7 @@ extra:                              # escape hatches (all empty by default)
   # Specific devices to pass through (Linux and WSLg; not needed with host.hardware_access).
   #   devices: ["/dev/ttyUSB0:/dev/ttyUSB0", "/dev/video0:/dev/video0"]
   devices: []
-  # Raw shell steps appended as RUN lines at the end of the Dockerfile.
-  # A step is a string (one RUN) or {comment, cmd} to add a comment above it.
+  # Raw shell commands, each appended as one RUN line at the end of the Dockerfile.
   run: []
   # Build-time ENV lines in the Dockerfile (baked into the image, visible to later RUN steps).
   #   dockerfile_env: {VENDOR_SDK_ROOT: /opt/vendor_sdk}

@@ -1,8 +1,8 @@
 # {{ header }}
 #
 # Overlay for hosts without an X server (macOS): the container runs its own
-# Xfce desktop, served by noVNC at http://localhost:{{ display.vnc.novnc_port }}/vnc.html
-# (native VNC clients: localhost:{{ display.vnc.vnc_port }}). Password: display.vnc.password in the config.
+# Xfce desktop, served by noVNC at http://localhost:{{ display.vnc.novnc_port }}/vnc.html.
+# Password: display.vnc.password in the config.
 services:
   {{ service }}:
     # Loopback only: the desktop is a root shell with the workspace mounted, behind a
@@ -10,7 +10,6 @@ services:
     #   ssh -L {{ display.vnc.novnc_port }}:localhost:{{ display.vnc.novnc_port }} <this-host>
     ports:
       - "127.0.0.1:{{ display.vnc.novnc_port }}:6080"
-      - "127.0.0.1:{{ display.vnc.vnc_port }}:5901"
 
     environment:
       ENABLE_VNC: "true"

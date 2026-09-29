@@ -105,13 +105,8 @@ RUN echo "source /opt/ros/{{ ros.distro }}/setup.bash" >> /root/.bashrc \
 # Extra Commands #
 ##################
 
-{% for step in extra.run %}
-{% if step is mapping %}
-# {{ step.comment }}
-RUN {{ step.cmd }}
-{% else %}
-RUN {{ step }}
-{% endif %}
+{% for command in extra.run %}
+RUN {{ command }}
 {% endfor %}
 {% endif %}
 

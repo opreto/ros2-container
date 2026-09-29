@@ -23,7 +23,8 @@ EOF
     chmod +x ~/.vnc/xstartup
 
     vncserver -kill :1 >/dev/null 2>&1 || true
-    vncserver :1 -geometry "${VNC_GEOMETRY}" -depth 24 -localhost no
+    # Only websockify (noVNC), in this container, talks to the VNC server.
+    vncserver :1 -geometry "${VNC_GEOMETRY}" -depth 24 -localhost yes
 
     # Debian's novnc package doesn't ship utils/launch.sh, so run websockify directly.
     websockify --web=/usr/share/novnc 6080 localhost:5901 >/dev/null 2>&1 &
