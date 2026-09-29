@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # {{ header }}
-"""Regenerate Pyright/Pylance extraPaths from the ROS 2 workspace's packages.
+"""Write pyrightconfig.json at the workspace root, with extraPaths for the ROS 2 workspace's packages.
 
 ament_python packages install in "develop" mode: colcon drops an
 .egg-link in install/<pkg>/lib/python3.*/site-packages that points at
@@ -9,13 +9,16 @@ ROS 2 runtime (ament/setuptools follow it), but Pyright doesn't resolve
 .egg-link files, so those packages need their src/ directory on extraPaths
 instead. Which packages need that, and what their paths are, is exactly
 what `colcon list` already knows -- so this regenerates pyrightconfig.json
-and .vscode/settings.json from that instead of hand-maintained lists, which
-otherwise silently go stale when a new ament_python package is added.
+from that instead of a hand-maintained list, which otherwise silently goes
+stale when a new ament_python package is added. Pylance (VS Code) and
+Pyright-based editors read this file; it takes precedence over the
+python.analysis.* settings in .vscode/settings.json.
 
 Run standalone for a quick refresh, or via colcon_build.sh (`cb`),
 which runs this automatically after every build.
 """
 
+import json
 import re
 import shutil
 import subprocess
@@ -23,14 +26,10 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-PROJECT_ROOT = Path({{ workspace.container_path | quote }})
+PYRIGHT_CONFIG = Path({{ workspace.container_path | quote }}) / "pyrightconfig.json"
 ROS_WS = Path({{ ros_ws | quote }})
-WS_PREFIX = "" if ROS_WS == PROJECT_ROOT else f"{ROS_WS.relative_to(PROJECT_ROOT)}/"
+WS_PREFIX = {{ ws_prefix | quote }}  # ROS_WS relative to the workspace root, with a trailing slash ("" if the same)
 PYTHON_TAG = f"python3.{sys.version_info.minor}"
-
-# IDE files to update, as seen inside the container (None: not generated).
-PYRIGHT_CONFIG = {{ (ide_files.pyright | quote) if ide_files.pyright else "None" }}
-VSCODE_SETTINGS = {{ (ide_files.settings | quote) if ide_files.settings else "None" }}
 
 SYSTEM_PATHS = [
     f"/opt/ros/{{ ros.distro }}/lib/{PYTHON_TAG}/site-packages",
@@ -86,41 +85,14 @@ def compute_extra_paths() -> list[str]:
     return sorted(paths)
 
 
-def replace_extra_paths_array(path: Path, key: str, paths: list[str]) -> None:
-    """Targeted regex replace of one `"key": [...]` array, leaving the rest of the file untouched.
-
-    Both files are JSONC (comments, trailing commas), which trips up a strict
-    json.loads/dumps round-trip -- so this edits the array in place as text
-    instead of reserializing the whole file.
-    """
-    text = path.read_text()
-    rendered = ",\n".join(f'    "{p}"' for p in paths)
-    replacement = f'"{key}": [\n{rendered}\n  ]'
-    pattern = re.compile(rf'"{re.escape(key)}"\s*:\s*\[.*?\]', re.DOTALL)
-    text, count = pattern.subn(lambda _: replacement, text, count=1)
-    if count == 0:
-        raise RuntimeError(f"Could not find {key!r} in {path}")
-    path.write_text(text)
-
-
-def update_pyrightconfig(extra_paths: list[str]) -> None:
-    if PYRIGHT_CONFIG and Path(PYRIGHT_CONFIG).exists():
-        replace_extra_paths_array(Path(PYRIGHT_CONFIG), "extraPaths", SYSTEM_PATHS + extra_paths)
-
-
-def update_settings_json(extra_paths: list[str]) -> None:
-    if not (VSCODE_SETTINGS and Path(VSCODE_SETTINGS).exists()):
-        return
-    workspace_paths = ["${workspaceFolder}/" + p for p in extra_paths]
-    for key in ("python.autoComplete.extraPaths", "python.analysis.extraPaths"):
-        replace_extra_paths_array(Path(VSCODE_SETTINGS), key, SYSTEM_PATHS + workspace_paths)
-
-
 def main() -> None:
     extra_paths = compute_extra_paths()
-    update_pyrightconfig(extra_paths)
-    update_settings_json(extra_paths)
-    print(f"Regenerated extraPaths for {len(extra_paths)} workspace package(s).")
+    config = {
+        "extraPaths": SYSTEM_PATHS + extra_paths,
+        "exclude": ["**/build", "**/install", "**/log"],
+    }
+    PYRIGHT_CONFIG.write_text(json.dumps(config, indent=2) + "\n")
+    print(f"Wrote {PYRIGHT_CONFIG} with extraPaths for {len(extra_paths)} workspace package(s).")
 
 
 if __name__ == "__main__":

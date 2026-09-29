@@ -14,7 +14,7 @@ tools/ros2-container/generate.sh init
 This writes a default `./ros2-container.yaml` from `examples/lyrical.yaml`.
 Edit this file to change the project name, ROS distro, dependencies, etc., then finish building with:
 ```bash
-tools/ros2-container/generate.sh             # writes Docker/, .devcontainer/, .vscode/, pyrightconfig.json
+tools/ros2-container/generate.sh             # writes Docker/, .devcontainer/, .vscode/
 Docker/compose-up.sh up -d --build           # detects the host and starts the container
 Docker/compose-up.sh exec ros2-dev bash
 ```
@@ -55,7 +55,7 @@ Turn variants off under `display:` in the config.
 
 ## Inside the container
 
-- `cb` runs rosdep install and `colcon build --symlink-install`. It then merges `compile_commands.json` for clangd and IntelliSense, and refreshes the Pylance `extraPaths` for your packages. Arguments after `--` go to colcon.
+- `cb` runs rosdep install and `colcon build --symlink-install`. It then merges `compile_commands.json` for clangd and IntelliSense, and writes `pyrightconfig.json` at the workspace root so Pylance/Pyright can import your packages (it is also written when the dev container is created). `cb -j N` limits parallel jobs, and `cb --rosdep-update` refreshes the rosdep index first. Other arguments, and anything after `--`, go to colcon (e.g. `cb -- --packages-select my_pkg`).
 - `cbs` runs `cb` and then sources the workspace. `cclean` deletes `build/`, `install/` and `log/`.
 - `ct` runs `colcon test` on the built workspace and prints `colcon test-result --verbose`. It exits non-zero if any test fails. Arguments after `--` go to colcon (e.g. `ct -- --packages-select my_pkg`). Set `test.skip_paths` in the config to skip packages you don't maintain.
 - Put personal aliases in `Docker/.bash_aliases_personal`.

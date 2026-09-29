@@ -26,15 +26,10 @@ def build(cfg: Config) -> dict:
     ros_ws = posixpath.normpath(posixpath.join(container_root, d["workspace"]["ros_ws_subdir"]))
     install_dir = f"/opt/{name}"
     enabled_variants = variants.enabled(d)
-    ide_scripts = d["editor"]["enabled"] or d["ide"]["pyright_config"]
+    ws_rel = posixpath.relpath(ros_ws, container_root)
     post_create = d["editor"]["post_create_command"]
-    if ide_scripts:
+    if d["ide"]["pyright_config"]:
         post_create += f" && python3 {install_dir}/scripts/generate_ide_config.py"
-
-    def in_container(host_path: Path) -> str | None:
-        """Where a host path under the workspace mount appears inside the container."""
-        rel = os.path.relpath(host_path, workspace_dir)
-        return None if rel.startswith("..") else posixpath.normpath(posixpath.join(container_root, rel))
 
     return {
         **d,
@@ -45,6 +40,7 @@ def build(cfg: Config) -> dict:
         "base_image": d["ros"]["base_image"].format(distro=distro),
         "install_dir": install_dir,
         "ros_ws": ros_ws,
+        "ws_prefix": "" if ws_rel == "." else f"{ws_rel}/",
         "workspace_mount": _rel(workspace_dir, docker_dir),
         "rmw_package": _ros_package(distro, d["rmw"]["implementation"]),
         "use_cyclonedds": d["rmw"]["implementation"] == "rmw_cyclonedds_cpp",
@@ -52,14 +48,8 @@ def build(cfg: Config) -> dict:
         "rosdep_rules": _read_optional(cfg.config_dir, d["rosdep"]["rules_file"]),
         "variants": enabled_variants,
         "overlays": sorted({o for v in enabled_variants for o in v.overlays}),
-        "ide_scripts": ide_scripts,
-        "ide_files": {
-            "settings": in_container(root / dirs["vscode"] / "settings.json") if d["editor"]["enabled"] else None,
-            "pyright": in_container(root / "pyrightconfig.json") if d["ide"]["pyright_config"] else None,
-        },
         "devcontainers": _devcontainers(d, enabled_variants, root / dirs["devcontainer"], docker_dir, post_create),
         "vscode_settings": _vscode_settings(d, ros_ws),
-        "pyright_config": {"extraPaths": [], "exclude": ["**/build", "**/install", "**/log"]},
     }
 
 
@@ -98,10 +88,8 @@ def _devcontainers(
 
 
 def _vscode_settings(d: dict, ros_ws: str) -> dict:
-    # extraPaths start empty; generate_ide_config.py fills them in the container after each build.
+    # Python import paths live in pyrightconfig.json, written by generate_ide_config.py in the container.
     base = {
-        "python.analysis.extraPaths": [],
-        "python.autoComplete.extraPaths": [],
         "C_Cpp.default.compileCommands": f"{ros_ws}/compile_commands.json",
         "clangd.arguments": [f"--compile-commands-dir={ros_ws}"],
     }

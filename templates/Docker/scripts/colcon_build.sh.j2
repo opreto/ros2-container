@@ -89,7 +89,7 @@ colcon build \
 {% if build.merge_compile_commands %}
 "$THIS_DIR/merge_compile_commands.sh" "$WORKSPACE"
 {% endif %}
-{% if ide_scripts %}
+{% if ide.pyright_config %}
 python3 "$THIS_DIR/generate_ide_config.py"
 {% endif %}
 {% if build.post_build_hook %}

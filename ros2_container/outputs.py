@@ -22,7 +22,6 @@ TEMPLATES_DIR = REPO_DIR / "templates"
 class Policy(enum.Enum):
     OWNED = "owned"  # always regenerated; deleted when no longer produced
     SEED = "seed"  # written only if missing, then left to the user (e.g. .env)
-    BUILD_EDITED = "build-edited"  # owned, but rewritten in-container after builds
 
 
 @dataclass(frozen=True)
@@ -68,10 +67,9 @@ OUTPUTS = (
     Output("Docker/scripts/colcon_build.sh.j2", "{docker}/scripts/colcon_build.sh", executable=True),
     Output("Docker/scripts/colcon_test.sh.j2", "{docker}/scripts/colcon_test.sh", executable=True),
     Output("Docker/scripts/merge_compile_commands.sh.j2", "{docker}/scripts/merge_compile_commands.sh", executable=True),
-    Output("Docker/scripts/generate_ide_config.py.j2", "{docker}/scripts/generate_ide_config.py", executable=True),
+    Output("Docker/scripts/generate_ide_config.py.j2", "{docker}/scripts/generate_ide_config.py", when=flag("ide.pyright_config"), executable=True),
     Output("devcontainer/devcontainer.json.j2", "{devcontainer}/{item[folder]}/devcontainer.json", each="devcontainers"),
-    Output("vscode/settings.json.j2", "{vscode}/settings.json", when=flag("editor.enabled"), policy=Policy.BUILD_EDITED),
-    Output("pyrightconfig.json.j2", "pyrightconfig.json", when=flag("ide.pyright_config"), policy=Policy.BUILD_EDITED),
+    Output("vscode/settings.json.j2", "{vscode}/settings.json", when=flag("editor.enabled")),
 )
 
 

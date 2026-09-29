@@ -115,7 +115,7 @@ test:
   skip_paths: []
 
 ide:
-  pyright_config: true              # emit pyrightconfig.json; its extraPaths are refreshed after each build
+  pyright_config: true              # write pyrightconfig.json (Python import paths) in the container after each build
 
 editor:
   enabled: true                     # emit .devcontainer/ and .vscode/
