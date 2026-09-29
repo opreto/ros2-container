@@ -59,7 +59,7 @@ colcon_test_args=(--event-handlers console_direct+)
 already_scoped=false
 for forwarded_arg in "${colconArgs[@]}"; do
   case "$forwarded_arg" in
-    --packages-select | --packages-skip | --packages-up-to)
+    --packages-select | --packages-skip | --packages-up-to | --packages-select=* | --packages-skip=* | --packages-up-to=*)
       already_scoped=true
       break
       ;;
