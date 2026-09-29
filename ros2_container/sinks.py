@@ -7,12 +7,14 @@ from pathlib import Path
 from .config import ConfigError
 from .outputs import File, Policy
 
+MANIFEST = ".ros2-container.generated"  # under the output root, so it survives output.docker_dir changes
+
 
 class _Manifest:
-    """The list of files the generator owns, kept next to the generated Docker files."""
+    """The list of files the generator owns, at MANIFEST under the output root."""
 
-    def __init__(self, root: Path, rel_path: str):
-        self.root, self.path = root, root / rel_path
+    def __init__(self, root: Path):
+        self.root, self.path = root, root / MANIFEST
 
     def read(self) -> set[Path]:
         """Owned paths, relative to the root. The file is committed, so it is untrusted: stale entries
@@ -35,8 +37,8 @@ def _owned(files: list[File]) -> set[Path]:
 
 
 class DiskSink:
-    def __init__(self, root: Path, manifest: str, force: bool = False):
-        self.root, self.manifest, self.force = root, _Manifest(root, manifest), force
+    def __init__(self, root: Path, force: bool = False):
+        self.root, self.manifest, self.force = root, _Manifest(root), force
 
     def apply(self, files: list[File]) -> int:
         previously_owned = self.manifest.read()

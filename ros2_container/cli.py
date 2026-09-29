@@ -18,8 +18,7 @@ def main(argv: list[str] | None = None) -> int:
         cfg = config.load(args.config)
         ctx = context.build(cfg)
         files = outputs.render(outputs.OUTPUTS, ctx)
-        manifest = f"{ctx['dirs']['docker']}/.generated"
-        code = sinks.DiskSink(cfg.output_root, manifest, args.force).apply(files)
+        code = sinks.DiskSink(cfg.output_root, args.force).apply(files)
     except config.ConfigError as err:
         print(f"error: {err}", file=sys.stderr)
         return 2

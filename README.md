@@ -58,7 +58,7 @@ config only needs the settings it changes; the rest come from [defaults.yaml](de
   | `workspace.host_path` (mounted at `workspace.container_path`) | `output.root` |
   | `workspace.ros_ws_subdir` (the colcon workspace with `src/`) | `workspace.host_path` |
 
-The generator lists the files it owns in `Docker/.generated`. A re-run updates
+The generator lists the files it owns in `.ros2-container.generated`, next to the generated folders. A re-run updates
 them and deletes any it no longer produces. It won't overwrite files it didn't
 create unless you pass `-f`/`--force`. `Docker/.env` and `Docker/.bash_aliases_personal`
 are written once and then left alone. Run `generate.sh -h` for all options.
