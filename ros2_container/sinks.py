@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .config import ConfigError
 from .outputs import File, Policy
 
 
@@ -11,10 +12,19 @@ class _Manifest:
     """The list of files the generator owns, kept next to the generated Docker files."""
 
     def __init__(self, root: Path, rel_path: str):
-        self.path = root / rel_path
+        self.root, self.path = root, root / rel_path
 
     def read(self) -> set[Path]:
-        return {Path(line) for line in self.path.read_text().splitlines() if line} if self.path.exists() else set()
+        """Owned paths, relative to the root. The file is committed, so it is untrusted: stale entries
+        get deleted, and an absolute or `..` path would otherwise point outside the output root."""
+        if not self.path.exists():
+            return set()
+        entries = {Path(line) for line in self.path.read_text().splitlines() if line}
+        root = self.root.resolve()
+        for entry in entries:
+            if entry.is_absolute() or not (root / entry).resolve().is_relative_to(root):
+                raise ConfigError(f"{self.path} lists {entry}, which is outside {root}; fix or delete that line.")
+        return entries
 
     def write(self, owned: set[Path]) -> None:
         self.path.write_text("".join(f"{p.as_posix()}\n" for p in sorted(owned)))
