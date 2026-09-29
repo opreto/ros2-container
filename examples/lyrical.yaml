@@ -73,8 +73,8 @@ dependencies:
       - camera_info_manager
       - image_pipeline
   pip:
-    - ruff~=0.15.4
-    - rosbags~=0.11.2
+    - ruff~=0.16.9
+    - rosbags~=0.11.5
   # Build from source instead of a wheel, e.g. so pybullet's EGL renderer links the Mesa libs above:
   # pip_source_builds: [pybullet]
   pip_source_builds: []
