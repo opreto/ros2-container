@@ -27,9 +27,8 @@ def build(cfg: Config) -> dict:
     install_dir = f"/opt/{name}"
     enabled_variants = variants.enabled(d)
     ws_rel = posixpath.relpath(ros_ws, container_root)
-    post_create = d["editor"]["post_create_command"]
-    if d["ide"]["pyright_config"]:
-        post_create += f" && python3 {install_dir}/scripts/generate_ide_config.py"
+    ide_config = f"python3 {install_dir}/scripts/generate_ide_config.py" if d["ide"]["pyright_config"] else None
+    post_create = " && ".join(c for c in (d["editor"]["post_create_command"], ide_config) if c)  # either may be empty
 
     return {
         **d,
@@ -69,7 +68,7 @@ def _devcontainers(
                 "dockerComposeFile": [_rel(docker_dir / f, devcontainer_dir / folder) for f in v.compose_files],
                 "service": SERVICE,
                 "workspaceFolder": d["workspace"]["container_path"],
-                "postCreateCommand": post_create,
+                **({"postCreateCommand": post_create} if post_create else {}),
                 "customizations": {
                     "vscode": {
                         "extensions": extensions,
