@@ -95,8 +95,15 @@ RUN chmod +x {{ install_dir }}/scripts/* \
     && echo "source /opt/ros/{{ ros.distro }}/setup.bash" >> /root/.bashrc \
     && echo "[ -f /root/.bash_aliases ] && source /root/.bash_aliases" >> /root/.bashrc \
     && echo "[ -f /root/.bash_aliases_personal ] && source /root/.bash_aliases_personal" >> /root/.bashrc \
-    # The workspace is bind-mounted from the host, so its owner differs from root.
-    && git config --global --add safe.directory '*'
+    # The workspace is bind-mounted from the host, so its owner differs from root. Trust it and the
+    # repositories inside it (submodules, vcs imports). Git < 2.46 can't express "and everything
+    # below", so it trusts every directory instead, or nested repositories would be blocked.
+    && git config --global --add safe.directory {{ workspace.container_path | shquote }} \
+    && if dpkg --compare-versions "$(git --version | cut -d' ' -f3)" ge 2.46; then \
+         git config --global --add safe.directory {{ (workspace.container_path ~ "/*") | shquote }}; \
+       else \
+         git config --global --add safe.directory '*'; \
+       fi
 {% if extra.run %}
 
 ##################
