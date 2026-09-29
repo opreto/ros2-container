@@ -63,6 +63,6 @@ Turn variants off under `display:` in the config.
 ## Extending the generator
 
 - **Add a generated file:** add a template under `templates/` and one row to `OUTPUTS` in [ros2_container/outputs.py](ros2_container/outputs.py).
-- **Add a host type:** add one entry to `VARIANTS` in [ros2_container/variants.py](ros2_container/variants.py), plus its `compose.<overlay>.yml.j2` if it needs a new overlay.
+- **Add a host type:** add one entry to `VARIANTS` in [ros2_container/variants.py](ros2_container/variants.py), plus its `compose.<overlay>.yml.j2` if it needs a new overlay, and a line in `candidates()` in [compose-up.sh.j2](templates/Docker/compose-up.sh.j2) so it is auto-detected.
 - **Add a derived template value:** compute it in [ros2_container/context.py](ros2_container/context.py). Templates only loop and branch.
 - **Add a config option:** give it a default in [defaults.yaml](defaults.yaml) and use it in a template.

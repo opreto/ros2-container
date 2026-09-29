@@ -27,7 +27,7 @@ class Policy(enum.Enum):
 
 @dataclass(frozen=True)
 class Output:
-    template: str  # path under templates/; non-.j2 files are copied verbatim
+    template: str  # path under templates/
     dest: str  # relative to output root; formatted with ctx["dirs"] and `item`
     when: Callable[[dict], bool] = lambda ctx: True
     each: Optional[str] = None  # render once per element of ctx[each], exposed to the template as `item`
@@ -55,7 +55,6 @@ OUTPUTS = (
     Output("Docker/compose.vnc.yml.j2", "{docker}/compose.vnc.yml", when=overlay("vnc")),
     Output("Docker/compose.wslg.yml.j2", "{docker}/compose.wslg.yml", when=overlay("wslg")),
     Output("Docker/compose-up.sh.j2", "{docker}/compose-up.sh", executable=True),
-    Output("Docker/host_gpu_detect.py", "{docker}/host_gpu_detect.py", when=overlay("nvidia"), executable=True),
     Output("Docker/entrypoint.sh.j2", "{docker}/entrypoint.sh", executable=True),
     Output("Docker/bash_aliases.j2", "{docker}/.bash_aliases"),
     Output("Docker/cyclonedds.xml.j2", "{docker}/cyclonedds.xml", when=flag("use_cyclonedds")),
@@ -84,10 +83,7 @@ def render(outputs: tuple[Output, ...], ctx: dict) -> list[File]:
             continue
         for item in ctx[out.each] if out.each else [None]:
             dest = out.dest.format(**ctx["dirs"], item=item)
-            if out.template.endswith(".j2"):
-                content = env.get_template(out.template).render(ctx, item=item)
-            else:
-                content = (TEMPLATES_DIR / out.template).read_text()
+            content = env.get_template(out.template).render(ctx, item=item)
             files.append(File(Path(dest), content, out.executable, out.policy))
     return files
 

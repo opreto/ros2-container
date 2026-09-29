@@ -31,13 +31,15 @@ ENV {{ key }}={{ value | quote }}
 ARG APT_CACHE=/var/cache/apt
 ARG APT_LISTS=/var/lib/apt/lists
 
+# Keep downloaded .debs in the apt cache mount; Ubuntu images delete them after every install.
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
+
 #####################
 # Base Dependencies #
 #####################
 
-{{ apt_install("Tools the generated build scripts rely on", [
-    "ros-dev-tools", "python3-colcon-common-extensions", "python3-rosdep",
-    "python3-pip", "python3-virtualenv", "git", "curl", "jq", "sudo"]) }}
+# The ros base image already has git, colcon and rosdep.
+{{ apt_install("Tools the generated build scripts rely on", ["ros-dev-tools", "python3-pip", "jq"]) }}
 {% if "vnc" in overlays %}
 # TigerVNC (not TightVNC): its Xvnc supports GLX via llvmpipe, which RViz2/Gazebo need.
 {{ apt_install("Virtual desktop served over noVNC (mac-vnc variant)", [

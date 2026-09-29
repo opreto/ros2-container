@@ -17,6 +17,5 @@ services:
       DISPLAY: ":1"
       LIBGL_ALWAYS_SOFTWARE: "1"
 
-    # Helps Gazebo/RViz with shared-memory transport and large point clouds
+    # Host shared memory: helps Gazebo/RViz with shared-memory transport and large point clouds
     ipc: host
-    shm_size: 512mb
