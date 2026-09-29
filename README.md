@@ -29,6 +29,18 @@ Docker/compose-up.sh exec ros2-dev bash
 Or open the folder in VS Code, choose **Reopen in Container** and pick the
 variant for your machine.
 
+To shut the container down:
+
+```bash
+Docker/compose-up.sh stop                    # stop it; `compose-up.sh start` resumes it as it was
+Docker/compose-up.sh down                    # stop and remove it (the image is kept)
+```
+
+Your workspace is bind-mounted from the host, so source and build output
+survive both. `down` discards changes made inside the container itself, such as
+packages `cb` installed through rosdep; the next `cb` reinstalls them. In VS
+Code, closing the window stops the container.
+
 ## Changing the container
 
 Edit `ros2-container.yaml`, re-run `generate.sh`, and rebuild. A hand-written
