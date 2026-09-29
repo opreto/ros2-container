@@ -6,8 +6,8 @@ services:
   {{ service }}:
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
-{% if host.mount_dev %}
-      # Host /dev for USB serial, cameras, etc.
+{% if host.hardware_access %}
+      # Host /dev for USB serial, cameras, etc. (with privileged below)
       - /dev:/dev
 {% endif %}
 {% if display.mesa_dri or extra.devices %}
@@ -28,4 +28,6 @@ services:
 
     network_mode: {{ host.network_mode }}
 {% endif %}
-    privileged: {{ host.privileged | lower }}
+{% if host.hardware_access %}
+    privileged: true
+{% endif %}

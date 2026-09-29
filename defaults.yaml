@@ -75,9 +75,10 @@ display:
     vnc_port: 5901
 
 host:                               # Linux overlay only
-  privileged: true                  # broad hardware access
+  # Privileged mode plus the host's /dev: every device, including raw disks, and
+  # hot-plugged USB. Prefer listing specific devices in extra.devices.
+  hardware_access: false
   network_mode: host                # devices on the LAN
-  mount_dev: true                   # bind-mount host /dev
 
 extra:                              # escape hatches (all empty by default)
   # Extra compose bind mounts, added to the base compose file (all variants).
@@ -86,7 +87,7 @@ extra:                              # escape hatches (all empty by default)
   # Extra runtime env vars (compose `environment:`, all variants).
   #   env: {LD_LIBRARY_PATH: /opt/vendor_sdk/lib}
   env: {}
-  # Extra device passthrough (Linux overlay only; redundant with privileged + mount_dev).
+  # Specific devices to pass through (Linux and WSLg; not needed with host.hardware_access).
   #   devices: ["/dev/ttyUSB0:/dev/ttyUSB0", "/dev/video0:/dev/video0"]
   devices: []
   # Raw shell steps appended as RUN lines at the end of the Dockerfile.

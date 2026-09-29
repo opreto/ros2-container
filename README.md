@@ -49,6 +49,7 @@ config only needs the settings it changes; the rest come from [defaults.yaml](de
 - **Merging:** maps (including the named dependency groups) merge over the defaults; lists replace them. Unknown keys are an error.
 - **Dependencies:** each group in `dependencies.apt` and `dependencies.ros` becomes one cached `RUN` layer. ROS packages use short names (`robot_state_publisher` becomes `ros-<distro>-robot-state-publisher`).
 - **Escape hatches:** `extra.volumes`, `extra.env`, `extra.devices`, `extra.run` (raw Dockerfile steps), `extra.dockerfile_env` and `rosdep.rules_file`.
+- **Hardware access** is off by default. List specific devices in `extra.devices` (they must exist when the container starts), or set `host.hardware_access: true` for privileged mode and the host's whole `/dev`, which handles hot-plugged USB but also exposes raw disks.
 - **Layered configs:** `generate.sh -c base.yaml -c robot.yaml` merges the files left to right, so projects can share a base config.
 - **Relative paths** chain from the config file. Usually all three are `.`, meaning the config, the generated folders and the colcon workspace are all at the repo root.
 
