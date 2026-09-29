@@ -6,18 +6,23 @@
 #   - unknown keys are an error (to catch typos), except inside free-form maps
 #     (dependencies.apt, dependencies.ros, extra.env, extra.dockerfile_env,
 #     bash.aliases, editor.settings) whose keys are yours to choose.
-# Relative paths are resolved against the directory of your config file,
-# except workspace.host_path, which is relative to the output root.
+#
+# Relative paths chain from your config file:
+#   output.root, rosdep.rules_file   relative to the directory of your config file
+#                                    (the last one, when you pass several -c files)
+#   workspace.host_path              relative to output.root
+#   workspace.ros_ws_subdir          relative to workspace.host_path, which the
+#                                    container sees at workspace.container_path
+# The common case is all three set to `.`: the config sits at the repo root, the
+# generated folders go there too, and the whole repo is the colcon workspace.
 
 project:
   name: my-robot                    # slug: image, container and compose project names
   display_name: My Robot            # shown in the VS Code dev container picker
 
 output:
-  root: .                           # where generated folders go, relative to the config file
-  docker_dir: Docker
-  devcontainer_dir: .devcontainer
-  vscode_dir: .vscode
+  root: .                           # where generated folders go (relative to the config file's directory)
+  docker_dir: Docker                # .devcontainer/ and .vscode/ are always at the root
 
 ros:
   distro: jazzy
@@ -29,7 +34,7 @@ ros:
 workspace:
   host_path: .                      # folder bind-mounted into the container (relative to output root)
   container_path: /ros2_ws          # where it is mounted
-  ros_ws_subdir: .                  # colcon workspace (contains src/), relative to host_path
+  ros_ws_subdir: .                  # colcon workspace (contains src/), relative to host_path, e.g. ros2_ws
 
 dependencies:
   # apt packages, one cached `RUN apt-get install` per named group, in order.
@@ -93,14 +98,9 @@ rosdep:
   rules_file: null
 
 bash:
-  aliases:
-    gitst: git status
-    gitb: git branch
-    gitl: git pull
-    gitp: git push
-    u: cd ..
-    uu: cd ../..
-    uuu: cd ../../..
+  # Team-wide aliases for the container shell. Personal ones go in Docker/.bash_aliases_personal.
+  #   aliases: {gitst: git status}
+  aliases: {}
 
 build:
   cmake_args: -DCMAKE_BUILD_TYPE=Release

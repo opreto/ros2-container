@@ -28,8 +28,6 @@ services:
       {{ key }}: {{ value | quote }}
 {% endfor %}
 
-    # Interactive shell that keeps the container running
+    # Keep the image's interactive bash (CMD) running
     stdin_open: true
     tty: true
-    working_dir: {{ workspace.container_path }}
-    command: bash

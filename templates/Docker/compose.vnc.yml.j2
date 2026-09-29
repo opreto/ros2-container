@@ -10,7 +10,6 @@ services:
       - "{{ display.vnc.vnc_port }}:5901"
 
     environment:
-      USER: root
       ENABLE_VNC: "true"
       VNC_PASSWORD: ${VNC_PASSWORD:-{{ display.vnc.password }}}
       VNC_GEOMETRY: ${VNC_GEOMETRY:-{{ display.vnc.geometry }}}

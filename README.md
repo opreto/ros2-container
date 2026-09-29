@@ -30,15 +30,27 @@ own virtualenv in `tools/ros2-container/.venv`.
 Edit `ros2-container.yaml`, then re-run `generate.sh` and rebuild. Every option
 and its default is documented in [defaults.yaml](defaults.yaml). A few rules:
 
-- **Merging:** maps merge over the defaults, and lists replace them. Unknown keys are an error.
+- **Merging:** maps merge over the defaults (including the named dependency groups), and lists replace them. Unknown keys are an error.
 - **Dependencies:** `dependencies.apt` and `dependencies.ros` are named groups. Each group becomes one cached `RUN` layer. ROS packages use short names (`robot_state_publisher` becomes `ros-<distro>-robot-state-publisher`).
 - **Escape hatches:** `extra.volumes`, `extra.env`, `extra.devices`, `extra.run` (raw Dockerfile steps), `extra.dockerfile_env` and `rosdep.rules_file`.
+- **Relative paths** chain from the config file. The common case is all three set to `.`: the config, the generated folders and the colcon workspace are all at the repo root.
+
+  | Setting | Relative to |
+  |---|---|
+  | `output.root`, `rosdep.rules_file` | the directory of the config file (the last `-c` file) |
+  | `workspace.host_path` (mounted at `workspace.container_path`) | `output.root` |
+  | `workspace.ros_ws_subdir` (the colcon workspace with `src/`) | `workspace.host_path` |
 - **Layered configs:** every setting, including where output goes (`output.root`), comes from the config file. To share a base config across projects, use `generate.sh -c base.yaml -c robot.yaml`; the files merge left to right.
 
 The generator owns the files it writes, and lists them in `Docker/.generated`.
 Re-running it updates those files and deletes any it no longer produces. It
-won't overwrite files it didn't create unless you pass `--force`. It writes `Docker/.env` and
-`Docker/.bash_aliases_personal` once and then leaves them alone.
+won't overwrite files it didn't create unless you pass `-f`/`--force`. It writes `Docker/.env` and
+`Docker/.bash_aliases_personal` once and then leaves them alone. Run `generate.sh -h` for all options.
+
+`pyrightconfig.json` is not generated on the host: `cb` and the dev container's
+setup write it inside the container. If an older version of the generator
+created it, the next `generate.sh` run deletes it and the next `cb` recreates it.
+Commit it or gitignore it, whichever suits your project.
 
 ## Host variants
 

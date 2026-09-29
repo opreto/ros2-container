@@ -19,7 +19,7 @@ def build(cfg: Config) -> dict:
     d = cfg.data
     name, distro = d["project"]["name"], d["ros"]["distro"]
     root = cfg.output_root
-    dirs = {key: d["output"][f"{key}_dir"] for key in ("docker", "devcontainer", "vscode")}
+    dirs = {"docker": d["output"]["docker_dir"], "devcontainer": ".devcontainer", "vscode": ".vscode"}  # editors only look in these two
     docker_dir = root / dirs["docker"]
     workspace_dir = (root / d["workspace"]["host_path"]).resolve()
     container_root = d["workspace"]["container_path"]

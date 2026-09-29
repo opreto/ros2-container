@@ -57,7 +57,7 @@ OUTPUTS = (
     Output("Docker/entrypoint.sh.j2", "{docker}/entrypoint.sh", executable=True),
     Output("Docker/bash_aliases.j2", "{docker}/.bash_aliases"),
     Output("Docker/cyclonedds.xml.j2", "{docker}/cyclonedds.xml", when=flag("use_cyclonedds")),
-    Output("Docker/python-requirements.txt.j2", "{docker}/python-requirements.txt"),
+    Output("Docker/python-requirements.txt.j2", "{docker}/python-requirements.txt", when=flag("dependencies.pip")),
     Output("Docker/rosdep-rules.yaml.j2", "{docker}/rosdep-rules.yaml", when=flag("rosdep_rules")),
     Output("Docker/dockerignore.j2", "{docker}/.dockerignore"),
     Output("Docker/gitignore.j2", "{docker}/.gitignore"),

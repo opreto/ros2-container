@@ -12,7 +12,7 @@ if [ "${ENABLE_VNC:-false}" = "true" ]; then
     mkdir -p ~/.config/tigervnc
     [ -e ~/.vnc ] || ln -s .config/tigervnc ~/.vnc
 
-    echo "${VNC_PASSWORD:-{{ display.vnc.password }}}" | vncpasswd -f > ~/.vnc/passwd
+    echo "${VNC_PASSWORD}" | vncpasswd -f > ~/.vnc/passwd
     chmod 600 ~/.vnc/passwd
 
     cat > ~/.vnc/xstartup <<'EOF'
@@ -23,7 +23,7 @@ EOF
     chmod +x ~/.vnc/xstartup
 
     vncserver -kill :1 >/dev/null 2>&1 || true
-    vncserver :1 -geometry "${VNC_GEOMETRY:-{{ display.vnc.geometry }}}" -depth 24 -localhost no
+    vncserver :1 -geometry "${VNC_GEOMETRY}" -depth 24 -localhost no
 
     # Debian's novnc package doesn't ship utils/launch.sh, so run websockify directly.
     websockify --web=/usr/share/novnc 6080 localhost:5901 >/dev/null 2>&1 &

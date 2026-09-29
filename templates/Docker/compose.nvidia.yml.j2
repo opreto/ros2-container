@@ -6,7 +6,6 @@ services:
   {{ service }}:
     gpus: all
     environment:
-      NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: graphics,utility,compute
       __GLX_VENDOR_LIBRARY_NAME: nvidia
       # Headless EGL: prefer the NVIDIA GPU over Mesa (50_mesa.json).
