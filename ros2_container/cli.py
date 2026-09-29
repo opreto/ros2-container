@@ -19,12 +19,11 @@ def main(argv: list[str] | None = None) -> int:
         ctx = context.build(cfg)
         files = outputs.render(outputs.OUTPUTS, ctx)
         manifest = f"{ctx['dirs']['docker']}/.generated"
-        sink = sinks.CheckSink(cfg.output_root, manifest) if args.check else sinks.DiskSink(cfg.output_root, manifest, args.force)
-        code = sink.apply(files)
+        code = sinks.DiskSink(cfg.output_root, manifest, args.force).apply(files)
     except config.ConfigError as err:
         print(f"error: {err}", file=sys.stderr)
         return 2
-    if code == 0 and not args.check:
+    if code == 0:
         print(f"Next: {ctx['dirs']['docker']}/compose-up.sh up -d --build   (variants: {', '.join(v.name for v in ctx['variants'])})")
     return code
 
@@ -32,12 +31,11 @@ def main(argv: list[str] | None = None) -> int:
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="generate.sh", description="Generate a ROS 2 dev container from a YAML/JSON config (the only source of settings).")
     parser.add_argument("-c", "--config", action="append", default=[], help=f"config file(s), merged in order (default: ./{config.DEFAULT_CONFIG_NAME})")
-    parser.add_argument("--force", action="store_true", help="overwrite existing files the generator did not create")
-    parser.add_argument("--check", action="store_true", help="write nothing; exit 1 if generated files are out of date")
+    parser.add_argument("-f", "--force", action="store_true", help="overwrite existing files the generator did not create")
     sub = parser.add_subparsers(dest="command")
     init = sub.add_parser("init", help=f"write a starter ./{config.DEFAULT_CONFIG_NAME}")
-    init.add_argument("--distro", default="lyrical", help="example to start from (examples/<distro>.yaml)")
-    init.add_argument("--name", help="project slug (default: current folder name)")
+    init.add_argument("-d", "--distro", default="lyrical", help="example to start from (examples/<distro>.yaml)")
+    init.add_argument("-n", "--name", help="project slug (default: current folder name)")
     return parser.parse_args(argv)
 
 

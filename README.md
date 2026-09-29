@@ -37,9 +37,7 @@ and its default is documented in [defaults.yaml](defaults.yaml). A few rules:
 
 The generator owns the files it writes, and lists them in `Docker/.generated`.
 Re-running it updates those files and deletes any it no longer produces. It
-won't overwrite files it didn't create unless you pass `--force`.
-`generate.sh --check` exits with status 1 when the generated files are out of
-date, which is useful in CI. It writes `Docker/.env` and
+won't overwrite files it didn't create unless you pass `--force`. It writes `Docker/.env` and
 `Docker/.bash_aliases_personal` once and then leaves them alone.
 
 ## Host variants

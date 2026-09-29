@@ -22,7 +22,7 @@ TEMPLATES_DIR = REPO_DIR / "templates"
 class Policy(enum.Enum):
     OWNED = "owned"  # always regenerated; deleted when no longer produced
     SEED = "seed"  # written only if missing, then left to the user (e.g. .env)
-    BUILD_EDITED = "build-edited"  # owned, but rewritten in-container after builds; --check ignores content
+    BUILD_EDITED = "build-edited"  # owned, but rewritten in-container after builds
 
 
 @dataclass(frozen=True)
