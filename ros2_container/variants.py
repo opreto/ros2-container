@@ -26,7 +26,7 @@ class Variant:
 
 VARIANTS = (
     Variant("linux", "Linux, X11", ("linux",), flag("display.x11")),
-    Variant("linux-nvidia", "Linux, X11 + NVIDIA", ("linux", "nvidia"), lambda d: flag("display.x11")(d) and flag("display.nvidia")(d)),
+    Variant("linux-nvidia", "Linux, X11 + NVIDIA", ("linux", "nvidia"), flag("display.x11", "display.nvidia")),
     Variant("mac-vnc", "macOS, noVNC desktop", ("vnc",), flag("display.vnc.enabled")),
     Variant("windows-wslg", "Windows, WSLg", ("wslg",), flag("display.wslg")),
 )

@@ -1,6 +1,6 @@
 #!/bin/bash
 # {{ header }}
-set -e # fail on any exit code not being 0
+set -e
 
 WORKSPACE="${ROS_WS:-{{ ros_ws }}}"
 
@@ -43,8 +43,6 @@ if ! [[ -f "$WORKSPACE/install/setup.bash" ]]; then
   exit 1
 fi
 
-# Run the script
-# --------------
 source /opt/ros/{{ ros.distro }}/setup.bash
 source "$WORKSPACE/install/setup.bash"
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import copy
 import io
-import json
 import re
 from dataclasses import dataclass
 from functools import reduce
@@ -87,9 +86,9 @@ def scaffold(example: Path, name: str, display_name: str) -> str:
     return _scaffold_header(example) + out.getvalue()
 
 
-def flag(path: str) -> Callable[[dict], bool]:
-    """Predicate that is true when the dotted `path` (e.g. "editor.enabled") is truthy in a dict."""
-    return lambda data: bool(reduce(lambda d, key: d[key], path.split("."), data))
+def flag(*paths: str) -> Callable[[dict], bool]:
+    """Predicate that is true when every dotted path (e.g. "editor.enabled") is truthy in a dict."""
+    return lambda data: all(reduce(lambda d, key: d[key], path.split("."), data) for path in paths)
 
 
 def _default_config_file() -> Path:
@@ -102,8 +101,7 @@ def _default_config_file() -> Path:
 def _read(path: Path) -> dict:
     if not path.exists():
         raise ConfigError(f"Config file not found: {path}")
-    text = path.read_text()
-    data = json.loads(text) if path.suffix == ".json" else _yaml().load(text)
+    data = _yaml().load(path.read_text())  # JSON is valid YAML, so .json configs work too
     if not isinstance(data, dict):
         raise ConfigError(f"{path} must contain a mapping at the top level")
     return data

@@ -5,8 +5,8 @@
 # The build context is this folder. Build with compose-up.sh, e.g. `./compose-up.sh build`.
 {% macro apt_install(title, packages) %}
 # {{ title }}
-RUN --mount=type=cache,target=${APT_CACHE},sharing=locked \
-    --mount=type=cache,target=${APT_LISTS},sharing=locked \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
 {% for package in packages %}
     {{ package }}{{ " \\" if not loop.last }}
@@ -16,7 +16,6 @@ FROM {{ base_image }} AS dev
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_BREAK_SYSTEM_PACKAGES=1 \
-    WORKSPACE_ROOT={{ workspace.container_path }} \
     ROS_WS={{ ros_ws }} \
     ROS_DOMAIN_ID={{ ros.domain_id }} \
     RMW_IMPLEMENTATION={{ rmw.implementation }}
@@ -27,9 +26,6 @@ ENV CYCLONEDDS_URI=file://{{ install_dir }}/cyclonedds.xml
 {% for key, value in extra.dockerfile_env.items() %}
 ENV {{ key }}={{ value | quote }}
 {% endfor %}
-
-ARG APT_CACHE=/var/cache/apt
-ARG APT_LISTS=/var/lib/apt/lists
 
 # Keep downloaded .debs in the apt cache mount; Ubuntu images delete them after every install.
 RUN rm -f /etc/apt/apt.conf.d/docker-clean
@@ -75,24 +71,23 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 {% if rosdep_rules %}
 COPY rosdep-rules.yaml {{ install_dir }}/rosdep-rules.yaml
-RUN (rosdep init || true) \
-    && echo "yaml file://{{ install_dir }}/rosdep-rules.yaml" > /etc/ros/rosdep/sources.list.d/50-{{ project.name }}.list \
-    && rosdep update
-{% else %}
-RUN (rosdep init || true) && rosdep update
 {% endif %}
+RUN (rosdep init || true) \
+{% if rosdep_rules %}
+    && echo "yaml file://{{ install_dir }}/rosdep-rules.yaml" > /etc/ros/rosdep/sources.list.d/50-{{ project.name }}.list \
+{% endif %}
+    && rosdep update
 
 #################
 # Shell and IDE #
 #################
 
-COPY scripts/ {{ install_dir }}/scripts/
+COPY --chmod=755 scripts/ {{ install_dir }}/scripts/
 {% if use_cyclonedds %}
 COPY cyclonedds.xml {{ install_dir }}/cyclonedds.xml
 {% endif %}
 COPY .bash_aliases /root/.bash_aliases
-RUN chmod +x {{ install_dir }}/scripts/* \
-    && echo "source /opt/ros/{{ ros.distro }}/setup.bash" >> /root/.bashrc \
+RUN echo "source /opt/ros/{{ ros.distro }}/setup.bash" >> /root/.bashrc \
     && echo "[ -f /root/.bash_aliases ] && source /root/.bash_aliases" >> /root/.bashrc \
     && echo "[ -f /root/.bash_aliases_personal ] && source /root/.bash_aliases_personal" >> /root/.bashrc \
     # The workspace is bind-mounted from the host, so its owner differs from root. Trust it and the
@@ -120,8 +115,7 @@ RUN {{ step }}
 {% endfor %}
 {% endif %}
 
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY --chmod=755 entrypoint.sh /entrypoint.sh
 
 WORKDIR {{ workspace.container_path }}
 ENTRYPOINT ["/entrypoint.sh"]

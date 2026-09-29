@@ -52,7 +52,7 @@ def list_packages() -> list[Package]:
     colcon = shutil.which("colcon")
     if colcon is None:
         raise RuntimeError("colcon not found on PATH.")
-    result = subprocess.run(  # noqa: S603
+    result = subprocess.run(
         [colcon, "list"], cwd=ROS_WS, capture_output=True, text=True, check=True
     )
     packages = []

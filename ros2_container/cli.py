@@ -7,7 +7,7 @@ import re
 import sys
 from pathlib import Path
 
-from . import config, context, outputs, sinks
+from . import config, context, outputs, writer
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -18,12 +18,12 @@ def main(argv: list[str] | None = None) -> int:
         cfg = config.load(args.config)
         ctx = context.build(cfg)
         files = outputs.render(outputs.OUTPUTS, ctx)
-        code = sinks.DiskSink(cfg.output_root, args.force).apply(files)
+        code = writer.write_files(cfg.output_root, files, args.force)
     except config.ConfigError as err:
         print(f"error: {err}", file=sys.stderr)
         return 2
     if code == 0:
-        print(f"Next: {ctx['dirs']['docker']}/compose-up.sh up -d --build   (variants: {', '.join(v.name for v in ctx['variants'])})")
+        print(f"Next: {ctx['docker_dir']}/compose-up.sh up -d --build   (variants: {', '.join(v.name for v in ctx['variants'])})")
     return code
 
 

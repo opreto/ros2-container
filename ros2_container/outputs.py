@@ -5,7 +5,6 @@ Adding a generated file = adding one row to OUTPUTS.
 
 from __future__ import annotations
 
-import enum
 import json
 import shlex
 from dataclasses import dataclass
@@ -19,19 +18,14 @@ from .config import REPO_DIR, flag
 TEMPLATES_DIR = REPO_DIR / "templates"
 
 
-class Policy(enum.Enum):
-    OWNED = "owned"  # always regenerated; deleted when no longer produced
-    SEED = "seed"  # written only if missing, then left to the user (e.g. .env)
-
-
 @dataclass(frozen=True)
 class Output:
     template: str  # path under templates/
-    dest: str  # relative to output root; formatted with ctx["dirs"] and `item`
+    dest: str  # relative to output root; formatted with `docker` (ctx["docker_dir"]) and `item`
     when: Callable[[dict], bool] = lambda ctx: True
     each: Optional[str] = None  # render once per element of ctx[each], exposed to the template as `item`
     executable: bool = False
-    policy: Policy = Policy.OWNED
+    seed: bool = False  # written only if missing, then left to the user; otherwise owned and regenerated
 
 
 @dataclass(frozen=True)
@@ -39,7 +33,7 @@ class File:
     path: Path  # relative to output root
     content: str
     executable: bool
-    policy: Policy
+    seed: bool
 
 
 def overlay(name: str) -> Callable[[dict], bool]:
@@ -62,14 +56,14 @@ OUTPUTS = (
     Output("Docker/dockerignore.j2", "{docker}/.dockerignore"),
     Output("Docker/gitignore.j2", "{docker}/.gitignore"),
     Output("Docker/env.example.j2", "{docker}/.env.example"),
-    Output("Docker/env.example.j2", "{docker}/.env", policy=Policy.SEED),
-    Output("Docker/bash_aliases_personal.j2", "{docker}/.bash_aliases_personal", policy=Policy.SEED),
+    Output("Docker/env.example.j2", "{docker}/.env", seed=True),
+    Output("Docker/bash_aliases_personal.j2", "{docker}/.bash_aliases_personal", seed=True),
     Output("Docker/scripts/colcon_build.sh.j2", "{docker}/scripts/colcon_build.sh", executable=True),
     Output("Docker/scripts/colcon_test.sh.j2", "{docker}/scripts/colcon_test.sh", executable=True),
     Output("Docker/scripts/merge_compile_commands.sh.j2", "{docker}/scripts/merge_compile_commands.sh", executable=True),
     Output("Docker/scripts/generate_ide_config.py.j2", "{docker}/scripts/generate_ide_config.py", when=flag("ide.pyright_config"), executable=True),
-    Output("devcontainer/devcontainer.json.j2", "{devcontainer}/{item[folder]}/devcontainer.json", each="devcontainers"),
-    Output("vscode/settings.json.j2", "{vscode}/settings.json", when=flag("editor.enabled")),
+    Output("devcontainer/devcontainer.json.j2", ".devcontainer/{item[folder]}/devcontainer.json", each="devcontainers"),
+    Output("vscode/settings.json.j2", ".vscode/settings.json", when=flag("editor.enabled")),
 )
 
 
@@ -80,9 +74,9 @@ def render(outputs: tuple[Output, ...], ctx: dict) -> list[File]:
         if not out.when(ctx):
             continue
         for item in ctx[out.each] if out.each else [None]:
-            dest = out.dest.format(**ctx["dirs"], item=item)
+            dest = out.dest.format(docker=ctx["docker_dir"], item=item)
             content = env.get_template(out.template).render(ctx, item=item)
-            files.append(File(Path(dest), content, out.executable, out.policy))
+            files.append(File(Path(dest), content, out.executable, out.seed))
     return files
 
 
