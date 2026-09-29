@@ -76,6 +76,10 @@ are written once and then left alone. Run `generate.sh -h` for all options.
 Each variant has its own `.devcontainer/<variant>/devcontainer.json`. Turn
 variants off under `display:` in the config.
 
+The `mac-vnc` ports are only published on localhost, so the container's desktop isn't reachable from external networks. 
+To access it from another machine, tunnel over SSH:
+`ssh -L 6080:localhost:6080 <host>`.
+
 ## Inside the container
 
 - `cb` builds the workspace: `rosdep install`, then `colcon build --symlink-install`. Afterwards it merges `compile_commands.json` for clangd/IntelliSense and writes `pyrightconfig.json` so Pylance/Pyright can import your packages.

@@ -5,9 +5,12 @@
 # (native VNC clients: localhost:{{ display.vnc.vnc_port }}). Password: VNC_PASSWORD in .env.
 services:
   {{ service }}:
+    # Loopback only: the desktop is a root shell with the workspace mounted, behind a
+    # weak VNC password. From another machine, tunnel instead:
+    #   ssh -L {{ display.vnc.novnc_port }}:localhost:{{ display.vnc.novnc_port }} <this-host>
     ports:
-      - "{{ display.vnc.novnc_port }}:6080"
-      - "{{ display.vnc.vnc_port }}:5901"
+      - "127.0.0.1:{{ display.vnc.novnc_port }}:6080"
+      - "127.0.0.1:{{ display.vnc.vnc_port }}:5901"
 
     environment:
       ENABLE_VNC: "true"
