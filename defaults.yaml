@@ -62,10 +62,12 @@ rmw:
   cyclonedds_interfaces:
     - {name: lo, multicast: true}
 
+# Which host variants the project generates (shared by the whole team).
+# compose-up.sh detects the host each run and picks the best enabled variant.
 display:
   x11: true                         # Linux hosts: forward the host X11 display
   mesa_dri: true                    # Linux hosts: pass /dev/dri (Intel/AMD GPU via Mesa)
-  nvidia: true                      # Linux hosts: extra variant using the NVIDIA container toolkit; enable this on computers with NVIDIA graphics cards
+  nvidia: true                      # linux-nvidia variant; used automatically on hosts with an NVIDIA GPU and the NVIDIA Docker runtime
   wslg: true                        # Windows hosts: use WSLg's built-in X11/Wayland server
   vnc:                              # macOS (or any host): virtual desktop served via noVNC
     enabled: true

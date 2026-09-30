@@ -67,8 +67,9 @@ create unless you pass `-f`/`--force`. Run `generate.sh -h` for all options.
 | `windows-wslg` | `compose.yml` + `compose.wslg.yml`   | WSLg (run from a WSL2 shell)                     |
 
 `compose-up.sh` detects the variant each time it runs; `--variant <name>` forces one.
-Each variant has its own `.devcontainer/<variant>/devcontainer.json`. Turn
-variants off under `display:` in the config.
+Each variant has its own `.devcontainer/<variant>/devcontainer.json`. `display:` in the
+config lists the variants the project generates, shared by the whole team; turn
+off ones nobody needs. Detection happens at run time, so leave the rest on.
 
 The `mac-vnc` ports are only published on localhost, so the container's desktop isn't reachable from external networks. 
 To access it from another machine, tunnel over SSH:
