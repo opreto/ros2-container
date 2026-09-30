@@ -22,12 +22,16 @@ and so on, then:
 
 ```bash
 tools/ros2-container/generate.sh             # writes Docker/, .devcontainer/, .vscode/
+```
+
+To open the folder in VS Code, choose **Reopen in Container** and pick the
+variant for your machine.
+
+To start the container manually:
+```bash
 Docker/compose-up.sh up -d --build           # detects the host and starts the container
 Docker/compose-up.sh exec ros2-dev bash
 ```
-
-Or open the folder in VS Code, choose **Reopen in Container** and pick the
-variant for your machine.
 
 To shut the container down:
 
