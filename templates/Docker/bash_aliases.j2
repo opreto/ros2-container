@@ -1,0 +1,35 @@
+# {{ header }}
+# Put personal aliases and shell settings in Docker/.bashrc_personal (create it; it isn't committed).
+
+{% for name, command in bash.aliases.items() if command %}
+alias {{ name }}={{ command | shquote }}
+{% endfor %}
+
+# Sourcing
+alias sros="source /opt/ros/{{ ros.distro }}/setup.bash"
+alias swksp='source "$ROS_WS/install/setup.bash"'
+
+# Build the colcon workspace ($ROS_WS) from any directory. `cb -h` lists the
+# options; other args (and anything after `--`) go to `colcon build`.
+cb() {
+  bash {{ install_dir }}/scripts/colcon_build.sh "$@"
+}
+
+# Build, then source the workspace.
+cbs() {
+  cb "$@"
+  local ret=$?
+  swksp
+  return $ret
+}
+
+# Test the colcon workspace ($ROS_WS) from any directory, then print the results.
+# Anything after `--` goes to `colcon test`, e.g. `ct -- --packages-select my_pkg`.
+ct() {
+  bash {{ install_dir }}/scripts/colcon_test.sh "$@"
+}
+
+# Remove the colcon build artifacts.
+cclean() {
+  rm -rf "$ROS_WS/build" "$ROS_WS/install" "$ROS_WS/log"
+}

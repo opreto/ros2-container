@@ -1,0 +1,81 @@
+#!/bin/bash
+# {{ header }}
+set -e
+
+WORKSPACE="${ROS_WS:-{{ ros_ws }}}"
+
+helpFunction() {
+  echo "Run the ROS workspace's tests ($WORKSPACE; build it first, e.g. with cb)."
+  echo ""
+  echo "Usage: $0 [-h] [--] [colcon test args]"
+  echo ""
+  echo "Any other args, and everything after '--', go to 'colcon test', e.g.:"
+  echo -e "\t$0 -- --packages-select my_package"
+{% if test.skip_paths %}
+  echo ""
+  echo "Packages under {{ test.skip_paths | join(", ") }} are skipped automatically, unless the"
+  echo "forwarded args already scope packages themselves (--packages-select,"
+  echo "--packages-skip, or --packages-up-to), since colcon rejects combining those."
+{% endif %}
+}
+
+colconArgs=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      helpFunction
+      exit 0
+      ;;
+    --)
+      shift
+      colconArgs+=("$@")
+      break
+      ;;
+    *)
+      colconArgs+=("$1")
+      shift
+      ;;
+  esac
+done
+
+if ! [[ -f "$WORKSPACE/install/setup.bash" ]]; then
+  echo "$WORKSPACE has not been built yet. Build it first (e.g. with cb)."
+  exit 1
+fi
+
+source /opt/ros/{{ ros.distro }}/setup.bash
+source "$WORKSPACE/install/setup.bash"
+
+cd "$WORKSPACE"
+
+colcon_test_args=(--event-handlers console_direct+)
+{% if test.skip_paths %}
+
+# Do not run tests for packages under test.skip_paths (e.g. vendored code not
+# maintained here) -- unless the caller already scoped packages themselves,
+# since colcon rejects combining --packages-skip with --packages-select/--packages-up-to.
+already_scoped=false
+for forwarded_arg in "${colconArgs[@]}"; do
+  case "$forwarded_arg" in
+    --packages-select | --packages-skip | --packages-up-to | --packages-select=* | --packages-skip=* | --packages-up-to=*)
+      already_scoped=true
+      break
+      ;;
+  esac
+done
+
+if ! $already_scoped; then
+  skip_paths=({% for path in test.skip_paths %}{{ path | shquote }}{{ " " if not loop.last }}{% endfor %})
+  mapfile -t skipped_packages < <(colcon list --base-paths "${skip_paths[@]}" --names-only 2>/dev/null)
+  if ((${#skipped_packages[@]} > 0)); then
+    colcon_test_args+=(--packages-skip "${skipped_packages[@]}")
+  fi
+fi
+{% endif %}
+
+# Record a failing `colcon test` instead of exiting on it (set -e), so the
+# results summary below still prints.
+ret=0
+colcon test "${colcon_test_args[@]}" "${colconArgs[@]}" || ret=$?
+colcon test-result --verbose || ret=$((ret ? ret : $?))
+exit $ret

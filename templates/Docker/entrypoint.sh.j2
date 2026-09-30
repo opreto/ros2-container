@@ -1,0 +1,36 @@
+#!/bin/bash
+# {{ header }}
+set -e
+
+# vncserver needs $USER to find ~/.vnc; compose doesn't set it, so default to root.
+export USER="${USER:-root}"
+
+if [ "${ENABLE_VNC:-false}" = "true" ]; then
+    # TigerVNC >= 1.14 keeps its files in ~/.config/tigervnc (older: ~/.vnc).
+    # Make that the real directory and link ~/.vnc to it, so both layouts work
+    # and newer versions don't try (and fail) to migrate ~/.vnc.
+    mkdir -p ~/.config/tigervnc
+    [ -e ~/.vnc ] || ln -s .config/tigervnc ~/.vnc
+
+    echo "${VNC_PASSWORD}" | vncpasswd -f > ~/.vnc/passwd
+    chmod 600 ~/.vnc/passwd
+
+    cat > ~/.vnc/xstartup <<'EOF'
+#!/bin/bash
+xrdb "$HOME/.Xresources" 2>/dev/null
+exec startxfce4
+EOF
+    chmod +x ~/.vnc/xstartup
+
+    vncserver -kill :1 >/dev/null 2>&1 || true
+    # Only websockify (noVNC), in this container, talks to the VNC server.
+    vncserver :1 -geometry "${VNC_GEOMETRY}" -depth 24 -localhost yes
+
+    # Debian's novnc package doesn't ship utils/launch.sh, so run websockify directly.
+    websockify --web=/usr/share/novnc 6080 localhost:5901 >/dev/null 2>&1 &
+
+    export DISPLAY=:1
+fi
+
+source /opt/ros/{{ ros.distro }}/setup.bash
+exec "$@"

@@ -1,0 +1,22 @@
+# {{ header }}
+#
+# Overlay for Windows hosts: run compose-up.sh from a WSL2 distro. GUI apps
+# use WSLg's built-in X11/Wayland server, so windows open natively on Windows.
+services:
+  {{ service }}:
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /mnt/wslg:/mnt/wslg
+{% if extra.devices %}
+
+    devices:
+{% for device in extra.devices %}
+      - {{ device | quote }}
+{% endfor %}
+{% endif %}
+
+    environment:
+      DISPLAY: ${DISPLAY:-:0}
+      WAYLAND_DISPLAY: ${WAYLAND_DISPLAY:-wayland-0}
+      XDG_RUNTIME_DIR: /mnt/wslg/runtime-dir
+      PULSE_SERVER: /mnt/wslg/PulseServer

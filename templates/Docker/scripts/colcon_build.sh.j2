@@ -1,0 +1,107 @@
+#!/bin/bash
+# {{ header }}
+set -e
+
+THIS_DIR=$(dirname "$(readlink -f "$0")")
+WORKSPACE="${ROS_WS:-{{ ros_ws }}}"
+
+helpFunction() {
+  echo "Build the ROS workspace ($WORKSPACE): rosdep install, then colcon build --symlink-install."
+  echo ""
+  echo "Usage: $0 [args] [--] [colcon build args]"
+  echo -e "\t-j, --jobs <N>     Parallel compile jobs per package (sets MAKEFLAGS=-jN). colcon still builds several"
+  echo -e "\t                   packages at once, so up to N x workers jobs run in total. If the build gets"
+  echo -e "\t                   OOM-killed, also limit packages: cb -j N -- --parallel-workers 1 (or --executor sequential)."
+  echo -e "\t--rosdep-update    Run 'rosdep update' first, to pick up rosdep keys released since the container was created."
+  echo -e "\t-h, --help         Show help"
+  echo ""
+  echo "Any other args, and everything after '--', go to 'colcon build'. The default"
+  echo "--cmake-args are '{{ build.cmake_args }}'; passing your own --cmake-args replaces them."
+}
+
+jobs=""
+rosdepUpdate=false
+colconArgs=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -j|--jobs)
+      [[ $# -ge 2 ]] || { echo "$1 requires a number."; exit 1; }
+      jobs="$2"
+      shift 2
+      ;;
+    --jobs=*)
+      jobs="${1#*=}"
+      shift
+      ;;
+    --rosdep-update)
+      rosdepUpdate=true
+      shift
+      ;;
+    -h|--help)
+      helpFunction
+      exit 0
+      ;;
+    --)
+      shift
+      colconArgs+=("$@")
+      break
+      ;;
+    *)
+      colconArgs+=("$1")
+      shift
+      ;;
+  esac
+done
+
+if ! [[ -d "$WORKSPACE" ]]; then
+  echo "Directory $WORKSPACE does not exist."
+  exit 1
+fi
+
+source /opt/ros/{{ ros.distro }}/setup.bash
+cd "$WORKSPACE"
+
+if $rosdepUpdate; then
+  rosdep update
+fi
+# The image ships without apt package lists (the Dockerfile keeps them in a
+# build cache), so fetch them only when rosdep has something to install.
+if ! rosdep check --from-paths src --ignore-src >/dev/null 2>&1; then
+  apt-get update
+fi
+rosdep install --from-paths src --ignore-src -y
+
+if [[ -n "$jobs" ]]; then
+  export MAKEFLAGS="-j$jobs"
+fi
+{% if build.merge_compile_commands %}
+
+# Emit compile_commands.json for the merge below. Set via the
+# environment (CMake >= 3.17) rather than -D, so CMake doesn't warn
+# "Manually-specified variables were not used" for packages with no compiled
+# targets (e.g. a fresh `ros2 pkg create` without --node-name).
+export CMAKE_EXPORT_COMPILE_COMMANDS=ON
+{% endif %}
+
+cmakeArgs={{ build.cmake_args | shquote }}
+# shellcheck disable=SC2086  # cmakeArgs is intentionally word-split
+colcon build \
+  --cmake-args $cmakeArgs \
+  --symlink-install "${colconArgs[@]}"
+{% if build.merge_compile_commands %}
+
+# Merge the packages' compile_commands.json into one at the workspace root for
+# clangd/IntelliSense. Only CMake packages emit one; with none, drop any stale merge.
+mapfile -t compileCommands < <(find build -name compile_commands.json 2>/dev/null)
+if ((${#compileCommands[@]} > 0)); then
+  jq -s add "${compileCommands[@]}" > compile_commands.json.tmp && mv compile_commands.json.tmp compile_commands.json
+else
+  rm -f compile_commands.json
+fi
+{% endif %}
+{% if ide.pyright_config %}
+python3 "$THIS_DIR/generate_ide_config.py"
+{% endif %}
+{% if build.post_build_hook %}
+{{ build.post_build_hook }}
+{% endif %}

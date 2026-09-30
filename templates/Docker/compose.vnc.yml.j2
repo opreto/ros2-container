@@ -1,0 +1,22 @@
+# {{ header }}
+#
+# Overlay for hosts without an X server (macOS): the container runs its own
+# Xfce desktop, served by noVNC at http://localhost:{{ display.vnc.novnc_port }}/vnc.html.
+# Password: display.vnc.password in the config.
+services:
+  {{ service }}:
+    # Loopback only: the desktop is a root shell with the workspace mounted, behind a
+    # weak VNC password. From another machine, tunnel instead:
+    #   ssh -L {{ display.vnc.novnc_port }}:localhost:{{ display.vnc.novnc_port }} <this-host>
+    ports:
+      - "127.0.0.1:{{ display.vnc.novnc_port }}:6080"
+
+    environment:
+      ENABLE_VNC: "true"
+      VNC_PASSWORD: {{ display.vnc.password | quote }}
+      VNC_GEOMETRY: {{ display.vnc.geometry | quote }}
+      DISPLAY: ":1"
+      LIBGL_ALWAYS_SOFTWARE: "1"
+
+    # Host shared memory: helps Gazebo/RViz with shared-memory transport and large point clouds
+    ipc: host

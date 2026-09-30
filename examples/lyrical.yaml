@@ -1,0 +1,94 @@
+# ROS 2 Lyrical Luth (Ubuntu 26.04) dev container.
+#
+# Only settings that differ from the generator's defaults.yaml are listed here.
+# `generate.sh init` merges this file over defaults.yaml and writes the result, so
+# the starter config lists every option. Comments on keys that defaults.yaml already
+# has are taken from defaults.yaml; put documentation for existing options there.
+
+project:
+  name: my-robot
+  display_name: My Robot
+
+ros:
+  distro: lyrical
+
+dependencies:
+  # Named groups, merged with the defaults' groups ("Linters and Formatters" and
+  # "ROS Desktop" come from defaults.yaml). Set a group to [] to drop it.
+  apt:
+    Python Scientific Stack:
+      - python3-numpy
+      - python3-scipy
+      - python3-pandas
+      - python3-matplotlib
+      - python3-opencv
+      - python3-pyqt6
+    Developer Utilities:
+      - git-lfs
+      - wget
+      - htop
+      - iputils-ping
+      - tree
+      - terminator
+      - clangd
+      - gdb
+    Graphics (Mesa, EGL, OpenGL):
+      - libegl-dev
+      - libgl1-mesa-dev
+      - mesa-utils
+      - libgl1
+      - libglx-mesa0
+      - libegl1
+      - mesa-va-drivers
+      - vainfo
+  ros:                              # installed as ros-lyrical-<name>
+    Standard ROS 2 Packages:
+      - ros_gz
+      - controller_manager
+      - ros2_control
+      - vision_msgs
+      - image_transport
+      - plotjuggler                 # plotjuggler_ros (ROS topic plugins) isn't released for lyrical yet
+      - urdf
+      - xacro
+      - tf2_tools
+      - geometry2
+      - launch_ros
+      - launch_xml
+      - robot_state_publisher
+      - joint_state_publisher
+      - joint_state_publisher_gui
+      - diagnostic_updater
+      - camera_calibration
+      - camera_info_manager
+      - image_pipeline
+  pip:
+    - ruff~=0.16.9
+    - rosbags~=0.11.5
+
+editor:
+  extensions:                       # lists replace the defaults, so each list is complete
+    common:
+      - ms-vscode.cmake-tools
+      - ms-vscode.cpptools-themes
+      - ranch-hand-robotics.rde-ros-2
+      - ranch-hand-robotics.urdf-editor
+      - redhat.vscode-xml
+      - xaver.clang-format
+      - charliermarsh.ruff
+      - mermaidchart.vscode-mermaid-chart
+      - anthropic.claude-code
+    vscode:
+      - ms-python.python
+      - ms-python.debugpy
+      - ms-vscode.cpptools
+      - ms-vscode.cpptools-extension-pack
+      - ms-vsliveshare.vsliveshare
+    cursor:
+      - anysphere.cursorpyright
+      - anysphere.cpptools
+      - typefox.open-collaboration-tools
+  post_create_command: >-
+    rosdep update
+    && git submodule update --init --recursive
+    && (git lfs pull || true)

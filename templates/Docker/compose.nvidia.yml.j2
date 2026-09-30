@@ -1,0 +1,12 @@
+# {{ header }}
+#
+# Overlay for Linux hosts with an NVIDIA GPU and nvidia-container-toolkit.
+# compose-up.sh adds it automatically when it finds a GPU and the NVIDIA Docker runtime.
+services:
+  {{ service }}:
+    gpus: all
+    environment:
+      NVIDIA_DRIVER_CAPABILITIES: graphics,utility,compute
+      __GLX_VENDOR_LIBRARY_NAME: nvidia
+      # Headless EGL: prefer the NVIDIA GPU over Mesa (50_mesa.json).
+      __EGL_VENDOR_LIBRARY_FILENAMES: /usr/share/glvnd/egl_vendor.d/10_nvidia.json

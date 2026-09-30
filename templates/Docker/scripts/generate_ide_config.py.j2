@@ -1,0 +1,99 @@
+#!/usr/bin/env python3
+# {{ header }}
+"""Write pyrightconfig.json at the workspace root, with extraPaths for the ROS 2 workspace's packages.
+
+ament_python packages install in "develop" mode: colcon drops an
+.egg-link in install/<pkg>/lib/python3.*/site-packages that points at
+build/<pkg>, rather than copying real .py files there. That's fine for the
+ROS 2 runtime (ament/setuptools follow it), but Pyright doesn't resolve
+.egg-link files, so those packages need their src/ directory on extraPaths
+instead. Which packages need that, and what their paths are, is exactly
+what `colcon list` already knows -- so this regenerates pyrightconfig.json
+from that instead of a hand-maintained list, which otherwise silently goes
+stale when a new ament_python package is added. Pylance (VS Code) and
+Pyright-based editors read this file; it takes precedence over the
+python.analysis.* settings in .vscode/settings.json.
+
+Run standalone for a quick refresh, or via colcon_build.sh (`cb`),
+which runs this automatically after every build.
+"""
+
+import json
+import re
+import shutil
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+
+PYRIGHT_CONFIG = Path({{ workspace.container_path | quote }}) / "pyrightconfig.json"
+ROS_WS = Path({{ ros_ws | quote }})
+WS_PREFIX = {{ ws_prefix | quote }}  # ROS_WS relative to the workspace root, with a trailing slash ("" if the same)
+PYTHON_TAG = f"python3.{sys.version_info.minor}"
+
+SYSTEM_PATHS = [
+    f"/opt/ros/{{ ros.distro }}/lib/{PYTHON_TAG}/site-packages",
+    f"/opt/ros/{{ ros.distro }}/local/lib/{PYTHON_TAG}/dist-packages",
+]
+
+# e.g. "my_package\tsrc/my_package\t(ros.ament_python)"
+LIST_LINE_RE = re.compile(r"^(\S+)\t(\S+)\t\(ros\.(\S+)\)$")
+
+
+@dataclass
+class Package:
+    name: str
+    rel_path: str  # relative to ROS_WS
+    build_type: str
+
+
+def list_packages() -> list[Package]:
+    """Every colcon-discovered package in the workspace."""
+    colcon = shutil.which("colcon")
+    if colcon is None:
+        raise RuntimeError("colcon not found on PATH.")
+    result = subprocess.run(
+        [colcon, "list"], cwd=ROS_WS, capture_output=True, text=True, check=True
+    )
+    packages = []
+    for line in result.stdout.splitlines():
+        match = LIST_LINE_RE.match(line)
+        if match:
+            packages.append(Package(*match.groups()))
+    return packages
+
+
+def has_real_site_packages(pkg_name: str) -> bool:
+    """True if install/<pkg> has actual installed modules, not just an egg-link."""
+    site_packages = ROS_WS / "install" / pkg_name / "lib" / PYTHON_TAG / "site-packages"
+    if not site_packages.is_dir():
+        return False
+    return any(
+        not (entry.name.endswith(".egg-link") or entry.name.endswith(".egg-info"))
+        for entry in site_packages.iterdir()
+    )
+
+
+def compute_extra_paths() -> list[str]:
+    """Workspace-root-relative extraPaths for every workspace package Pyright needs help finding."""
+    paths = []
+    for pkg in list_packages():
+        if pkg.build_type == "ament_python":
+            paths.append(f"{WS_PREFIX}{pkg.rel_path}")
+        elif has_real_site_packages(pkg.name):
+            paths.append(f"{WS_PREFIX}install/{pkg.name}/lib/{PYTHON_TAG}/site-packages")
+    return sorted(paths)
+
+
+def main() -> None:
+    extra_paths = compute_extra_paths()
+    config = {
+        "extraPaths": SYSTEM_PATHS + extra_paths,
+        "exclude": ["**/build", "**/install", "**/log"],
+    }
+    PYRIGHT_CONFIG.write_text(json.dumps(config, indent=2) + "\n")
+    print(f"Wrote {PYRIGHT_CONFIG} with extraPaths for {len(extra_paths)} workspace package(s).")
+
+
+if __name__ == "__main__":
+    main()

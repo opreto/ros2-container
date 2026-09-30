@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- {{ header }} -->
+<!-- Pin DDS to the interfaces listed below. Without this, CycloneDDS picks an
+     interface arbitrarily and may send discovery multicast out of a NIC that
+     should stay quiet (e.g. a point-to-point link to a sensor). To talk DDS to
+     other machines, add their LAN interface under rmw.cyclonedds_interfaces. -->
+<CycloneDDS xmlns="https://cdds.io/config">
+  <Domain Id="any">
+    <General>
+      <Interfaces>
+{% for iface in rmw.cyclonedds_interfaces %}
+        <NetworkInterface name="{{ iface.name }}" multicast="{{ iface.multicast | default(true) | lower }}"/>
+{% endfor %}
+      </Interfaces>
+    </General>
+  </Domain>
+</CycloneDDS>
