@@ -22,7 +22,7 @@ dependencies:
       - python3-pandas
       - python3-matplotlib
       - python3-opencv
-      - python3-pyqt5
+      - python3-pyqt6
     Developer Utilities:
       - git-lfs
       - wget
