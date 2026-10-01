@@ -1,0 +1,80 @@
+name: Clean Up PR Dev Image
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      pr-number:
+        description: Delete this PR's ros2-container:pr-<number> image. Leave blank to only delete untagged images.
+        type: number
+        required: false
+  # Called by publish-dev-image.yml to delete the image that latest-stable pointed to before.
+  workflow_call:
+    inputs:
+      pr-number:
+        description: Delete this PR's ros2-container:pr-<number> image. Omit to only delete untagged images.
+        type: number
+        required: false
+
+permissions:
+  packages: write
+
+jobs:
+  delete-pr-image:
+    runs-on: ubuntu-24.04
+    # Shared with build.yml, so this waits for an in-flight push of the PR's image.
+    concurrency:
+      group: pr-image-${{ github.event.pull_request.number || inputs.pr-number || 'prune' }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Delete PR and untagged dev images
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr-number }}
+        run: |
+          set -euo pipefail
+          versions_url="/orgs/${GITHUB_REPOSITORY_OWNER}/packages/container/ros2-container/versions"
+
+          error_log="$RUNNER_TEMP/gh-api-error.txt"
+          if ! versions=$(gh api --paginate "$versions_url" 2> "$error_log"); then
+            if grep -q "HTTP 404" "$error_log"; then
+              echo "The ros2-container package does not exist yet; nothing to delete."
+              exit 0
+            fi
+            cat "$error_log" >&2
+            exit 1
+          fi
+          # --paginate emits one JSON array per page, so merge them into one.
+          versions=$(jq -s 'add // []' <<< "$versions")
+
+          if [[ -n "$PR_NUMBER" ]]; then
+            tag="pr-$PR_NUMBER"
+            match=$(jq --arg tag "$tag" \
+              '[.[] | select(.metadata.container.tags | index($tag))] | first // empty' \
+              <<< "$versions")
+            if [[ -z "$match" ]]; then
+              echo "No image tagged $tag (the PR did not change the generator)."
+            else
+              # Never delete a version that another tag (e.g. latest-stable) still points to.
+              tags=$(jq -r '.metadata.container.tags | join(", ")' <<< "$match")
+              if [[ "$tags" != "$tag" ]]; then
+                echo "Version tagged $tag also has tags [$tags]; leaving it in place."
+              else
+                id=$(jq -r '.id' <<< "$match")
+                gh api -X DELETE "$versions_url/$id"
+                echo "Deleted package version $id ($tag)."
+              fi
+            fi
+          fi
+
+          # Re-pushing pr-<number> or latest-stable leaves the previous image untagged. Images
+          # are pushed without attestations, so no other untagged versions exist.
+          count=0
+          for id in $(jq -r '.[] | select(.metadata.container.tags | length == 0) | .id' <<< "$versions"); do
+            gh api -X DELETE "$versions_url/$id"
+            count=$((count + 1))
+          done
+          echo "Deleted $count untagged package version(s)."
