@@ -19,6 +19,7 @@ which runs this automatically after every build.
 """
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -26,9 +27,16 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-PYRIGHT_CONFIG = Path({{ workspace.container_path | quote }}) / "pyrightconfig.json"
-ROS_WS = Path({{ ros_ws | quote }})
-WS_PREFIX = {{ ws_prefix | quote }}  # ROS_WS relative to the workspace root, with a trailing slash ("" if the same)
+# ROS_WS from the environment wins, so this also works where the workspace is mounted
+# somewhere other than the generated path (e.g. a CI checkout). The workspace root,
+# where pyrightconfig.json goes, is derived from it.
+ROS_WS = Path(os.environ.get("ROS_WS", {{ ros_ws | quote }}))
+WS_SUBDIR = {{ ws_subdir | quote }}  # ROS_WS relative to the workspace root ("." if the same)
+WORKSPACE_ROOT = ROS_WS
+for _ in Path(WS_SUBDIR).parts:  # one level up per folder in WS_SUBDIR
+    WORKSPACE_ROOT = WORKSPACE_ROOT.parent
+WS_PREFIX = "" if WS_SUBDIR == "." else f"{WS_SUBDIR}/"
+PYRIGHT_CONFIG = WORKSPACE_ROOT / "pyrightconfig.json"
 PYTHON_TAG = f"python3.{sys.version_info.minor}"
 
 SYSTEM_PATHS = [

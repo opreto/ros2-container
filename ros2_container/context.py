@@ -41,7 +41,7 @@ def build(cfg: Config) -> dict:
         "base_image": d["ros"]["base_image"].format(distro=distro),
         "install_dir": install_dir,
         "ros_ws": ros_ws,
-        "ws_prefix": "" if ws_rel == "." else f"{ws_rel}/",
+        "ws_subdir": ws_rel,  # ros_ws relative to the workspace root ("." if the same)
         "workspace_mount": _rel(workspace_dir, docker_dir),
         "rmw_package": _ros_package(distro, d["rmw"]["implementation"]),
         "use_cyclonedds": d["rmw"]["implementation"] == "rmw_cyclonedds_cpp",
