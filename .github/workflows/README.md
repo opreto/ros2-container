@@ -10,7 +10,7 @@ describes: [`build-dev-image`](../actions/build-dev-image/action.yml) generates 
 | Workflow | Runs on | What it does |
 | --- | --- | --- |
 | [`validate-pr.yml`](validate-pr.yml) | Every PR update | Checks that the title starts with `ROS-<number>: ` and the description isn't empty. |
-| [`build.yml`](build.yml) | Every PR update; manual | Runs `colcon_build.sh` and `colcon_test.sh` (what `cb` and `ct` call) on an empty workspace inside the dev image. |
+| [`build.yml`](build.yml) | Every PR update | Runs `colcon_build.sh` and `colcon_test.sh` on an empty workspace inside the dev image. |
 | [`publish-dev-image.yml`](publish-dev-image.yml) | Generator changes merged to `main`; manual | Rebuilds the image as `latest-stable`, then deletes the image it replaced. |
 | [`cleanup-pr-image.yml`](cleanup-pr-image.yml) | PR closed; after publishing; manual | Deletes the PR's image and any untagged (replaced) images. |
 

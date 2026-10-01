@@ -2,10 +2,9 @@ name: Build and Test
 
 on:
   pull_request:
-  workflow_dispatch:
 
 concurrency:
-  group: build-${{ github.event.pull_request.number || github.ref }}
+  group: build-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 defaults:
@@ -24,16 +23,15 @@ jobs:
       pull-requests: read
     # Shared with cleanup-pr-image.yml, so a closed PR's image is only deleted once its push ends.
     concurrency:
-      group: pr-image-${{ github.event.pull_request.number || github.run_id }}
+      group: pr-image-${{ github.event.pull_request.number }}
       cancel-in-progress: false
     outputs:
       image: ${{ steps.pick.outputs.image }}
 
     steps:
-      # On pull_request this reads the changed files from the API, so it needs no checkout.
+      # Reads the changed files from the API, so it needs no checkout.
       - name: Check for generator changes
         id: changes
-        if: github.event_name == 'pull_request'
         uses: dorny/paths-filter@v3
         with:
           filters: |
