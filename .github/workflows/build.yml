@@ -1,0 +1,123 @@
+name: Build and Test
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # Pick the image to test in. A PR that changes the generator gets its own image
+  # (ros2-container:pr-<number>) so it is tested against the new output; every other run
+  # uses ros2-container:latest-stable.
+  dev-image:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: read
+    # Shared with cleanup-pr-image.yml, so a closed PR's image is only deleted once its push ends.
+    concurrency:
+      group: pr-image-${{ github.event.pull_request.number || github.run_id }}
+      cancel-in-progress: false
+    outputs:
+      image: ${{ steps.pick.outputs.image }}
+
+    steps:
+      # On pull_request this reads the changed files from the API, so it needs no checkout.
+      - name: Check for generator changes
+        id: changes
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            container:
+              - 'ros2_container/**'
+              - 'templates/**'
+              - 'defaults.yaml'
+              - 'requirements.txt'
+              - 'generate.sh'
+              - '.github/actions/build-dev-image/**'
+
+      - name: Pick dev image
+        id: pick
+        env:
+          CHANGED: ${{ steps.changes.outputs.container }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          tag=latest-stable
+          if [[ "$CHANGED" == true ]]; then tag="pr-$PR"; fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/ros2-container:$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout repository
+        if: steps.changes.outputs.container == 'true'
+        uses: actions/checkout@v4
+
+      - name: Build and push PR dev image
+        if: steps.changes.outputs.container == 'true'
+        uses: ./.github/actions/build-dev-image
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          tags: ${{ steps.pick.outputs.tag }}
+
+  # Run the image's build and test scripts on an empty ros workspace,
+  # so changes that break them fail here instead of in projects that use the generator.
+  build-and-test:
+    needs: dev-image
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ${{ needs.dev-image.outputs.image }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # The image's ROS_WS is where compose mounts a project's workspace locally. In CI the
+      # checkout is at $GITHUB_WORKSPACE inside the container (not github.workspace, the host
+      # path), so point ROS_WS at a workspace there, the way a project's CI does.
+      - name: Set environment variables
+        run: echo "ROS_WS=$GITHUB_WORKSPACE/ci_ws" >> "$GITHUB_ENV"
+
+      # Actions sets HOME=/github/home, which hides the image's rosdep cache in /root,
+      # so refresh it before resolving dependencies.
+      - name: Build the workspace (cb)
+        run: |
+          mkdir -p "$ROS_WS/src"
+          /opt/ros2-container/scripts/colcon_build.sh --rosdep-update
+
+      - name: Test the workspace (ct)
+        run: /opt/ros2-container/scripts/colcon_test.sh
+
+  # Generator tests (pytest) run on the runner itself and don't need the dev image.
+  # Uncomment when the first tests are added.
+  # tests:
+  #   runs-on: ubuntu-24.04
+  #   permissions:
+  #     contents: read
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: "3.12"
+  #
+  #     - name: Install dependencies
+  #       run: pip install -r requirements.txt pytest
+  #
+  #     - name: Run tests
+  #       run: pytest
