@@ -1,0 +1,83 @@
+name: Build Dev Image
+description: >
+  Generate a dev container from defaults.yaml (with project name ros2-container), then build
+  the image and push it to GHCR as ghcr.io/<owner>/ros2-container. Requires the repository to
+  be checked out.
+
+inputs:
+  tags:
+    description: Newline-separated list of tags to push, e.g. `latest-stable` or `pr-12`.
+    required: true
+  github-token:
+    description: Token with packages:write, used to log into ghcr.io.
+    required: true
+
+outputs:
+  image:
+    description: The image name without a tag, e.g. ghcr.io/<owner>/ros2-container.
+    value: ${{ steps.image.outputs.image }}
+  tags:
+    description: Newline-separated list of the full image references that were pushed.
+    value: ${{ steps.image.outputs.tags }}
+
+runs:
+  using: composite
+  steps:
+    - name: Compute image tags
+      id: image
+      shell: bash
+      env:
+        TAGS: ${{ inputs.tags }}
+      run: |
+        # GHCR image names must be lowercase.
+        image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/ros2-container"
+        echo "image=$image" >> "$GITHUB_OUTPUT"
+        {
+          echo "tags<<EOF"
+          while IFS= read -r tag; do
+            if [[ -n "$tag" ]]; then echo "$image:$tag"; fi
+          done <<< "$TAGS"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+
+    # The generator refuses to write inside its own repository, and the image should only
+    # depend on defaults.yaml (not examples/), so generate a minimal project outside the checkout.
+    - name: Generate dev container files
+      id: generate
+      shell: bash
+      run: |
+        project="$RUNNER_TEMP/ros2-container-ci"
+        mkdir -p "$project"
+        echo "project: {name: ros2-container, display_name: ROS 2 Container}" > "$project/ros2-container.yaml"
+        cd "$project" && "$GITHUB_WORKSPACE/generate.sh"
+        echo "context=$project/Docker" >> "$GITHUB_OUTPUT"
+
+    - name: Set up Docker BuildX
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ inputs.github-token }}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v6
+      with:
+        context: ${{ steps.generate.outputs.context }}
+        target: dev
+        # cleanup-pr-image.yml deletes every untagged package version. A multi-platform build
+        # pushes its per-platform manifests untagged, so update that cleanup before adding one.
+        platforms: linux/amd64
+        push: true
+        # Don't push untagged attestation manifests, so the only untagged package versions
+        # are old images that a later push re-tagged, which cleanup-pr-image.yml deletes.
+        provenance: false
+        # Links the GHCR package to this repository, which gives the repository's
+        # GITHUB_TOKEN access to pull and delete it.
+        labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+        tags: ${{ steps.image.outputs.tags }}
+        # PRs can read caches written by main, so PR images reuse main's layers.
+        cache-from: type=gha,scope=ros2-container-dev
+        cache-to: type=gha,scope=ros2-container-dev,mode=max
