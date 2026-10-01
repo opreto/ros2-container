@@ -1,0 +1,43 @@
+name: Publish Dev Image
+
+on:
+  push: # Rebuild whenever main changes the generator or the image build
+    branches:
+      - main
+    paths:
+      - 'ros2_container/**'
+      - 'templates/**'
+      - 'defaults.yaml'
+      - 'requirements.txt'
+      - 'generate.sh'
+      - '.github/actions/build-dev-image/**'
+      - '.github/workflows/publish-dev-image.yml'
+  workflow_dispatch: # Allow manual trigger
+
+permissions:
+  contents: read
+  packages: write
+
+# Queue rather than cancel, so the newest push to main is always the one published.
+concurrency:
+  group: publish-dev-image
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and push dev image
+        uses: ./.github/actions/build-dev-image
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          tags: latest-stable
+
+  # Pushing latest-stable leaves the previous image untagged, so delete it.
+  delete-old-image:
+    needs: publish
+    uses: ./.github/workflows/cleanup-pr-image.yml
